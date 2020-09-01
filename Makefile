@@ -25,7 +25,7 @@ prep: dns dhcp
 dns:
 	@if [ ! -d build/dnsproxy-go ]; 													\
 		then																	\
-			 cd build &&	\
+			 mkdir -p build && cd build &&	\
 			 git clone https://github.com/vorteil/dnsproxy-go; \
 	fi
 
@@ -33,6 +33,6 @@ dns:
 dhcp:
 	@if [ ! -d build/dhcp ]; 													\
 		then																	\
-			 cd build &&	\
+			 mkdir -p build && cd build &&	\
 			 git clone https://github.com/vorteil/dhcp.git; \
 	fi

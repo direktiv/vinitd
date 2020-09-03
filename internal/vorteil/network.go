@@ -6,7 +6,6 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
-	"sort"
 	"time"
 	"unsafe"
 
@@ -425,7 +424,8 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 
 	// add DNS
 	v.dns = append(v.dns, offer.DNS()...)
-	v.ntp = append(v.ntp, offer.NTPServers()...)
+	// TODO: ntp
+	// v.ntp = append(v.ntp, offer.NTPServers()...)
 
 	go func(name string, client *client4.Client, offer *dhcpv4.DHCPv4) {
 
@@ -569,7 +569,7 @@ func (v *Vinitd) NetworkSetup() error {
 	}
 
 	// interface counter
-	ic := 0
+	// ic := 0
 
 	var wg sync.WaitGroup
 	errCh := make(chan error)
@@ -601,25 +601,26 @@ func (v *Vinitd) NetworkSetup() error {
 			netlink.LinkSetMTU(link, 65536)
 		} else {
 
+			// TODO: network
 			// add the device to the list
-			ifName := fmt.Sprintf("eth%d", ic)
-			v.ifcs[ifName] = &ifc{
-				name:   ifName,
-				idx:    ic,
-				netIfc: i,
-			}
-
-			ifcg := v.vcfg.Net.Iface[ic]
-
-			logDebug("set mtu to %d for %s", ifcg.MTU, i.Name)
-			netlink.LinkSetMTU(link, int(ifcg.MTU))
-
-			setTSOValues(i.Name, ifcg.TSOEnabled)
-
-			wg.Add(2)
-			handleNetworkTCPDump(v.ifcs[ifName], ifcg, errCh, &wg, logAlways)
-			handleNetworkLink(v.ifcs[ifName], ifcg, v, errCh, &wg)
-			ic++
+			// ifName := fmt.Sprintf("eth%d", ic)
+			// v.ifcs[ifName] = &ifc{
+			// 	name:   ifName,
+			// 	idx:    ic,
+			// 	netIfc: i,
+			// }
+			//
+			// ifcg := v.vcfg.Net.Iface[ic]
+			//
+			// logDebug("set mtu to %d for %s", ifcg.MTU, i.Name)
+			// netlink.LinkSetMTU(link, int(ifcg.MTU))
+			//
+			// setTSOValues(i.Name, ifcg.TSOEnabled)
+			//
+			// wg.Add(2)
+			// handleNetworkTCPDump(v.ifcs[ifName], ifcg, errCh, &wg, logAlways)
+			// handleNetworkLink(v.ifcs[ifName], ifcg, v, errCh, &wg)
+			// ic++
 		}
 	}
 
@@ -639,26 +640,27 @@ func (v *Vinitd) NetworkSetup() error {
 
 	logDebug("network configured")
 
+	// TODO: network
 	// Sort interface keys for printing
-	ifcKeys := make([]string, 0, len(v.ifcs))
-	for k := range v.ifcs {
-		ifcKeys = append(ifcKeys, k)
-	}
-
-	sort.Strings(ifcKeys)
-	for _, iKey := range ifcKeys {
-		logAlways("%s ip\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].addr.IP.String())
-		logAlways("%s mask\t: %s", v.ifcs[iKey].name, net.IP(v.ifcs[iKey].addr.Mask).String())
-		logAlways("%s gateway\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].gw.String())
-	}
-
-	if len(v.ifcs) == 0 {
-		logAlways("ip\t: no network devices available")
-	}
-
-	configRoutes(v.vcfg.Net.Route)
-
-	go configQueues(v.ifcs)
+	// ifcKeys := make([]string, 0, len(v.ifcs))
+	// for k := range v.ifcs {
+	// 	ifcKeys = append(ifcKeys, k)
+	// }
+	//
+	// sort.Strings(ifcKeys)
+	// for _, iKey := range ifcKeys {
+	// 	logAlways("%s ip\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].addr.IP.String())
+	// 	logAlways("%s mask\t: %s", v.ifcs[iKey].name, net.IP(v.ifcs[iKey].addr.Mask).String())
+	// 	logAlways("%s gateway\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].gw.String())
+	// }
+	//
+	// if len(v.ifcs) == 0 {
+	// 	logAlways("ip\t: no network devices available")
+	// }
+	//
+	// configRoutes(v.vcfg.Net.Route)
+	//
+	// go configQueues(v.ifcs)
 
 	return nil
 }

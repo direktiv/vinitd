@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"unsafe"
@@ -138,83 +137,84 @@ func addProgLogging(sb *strings.Builder, programs []*program) {
 
 func (v *Vinitd) startLogging() {
 
-	writeEtcFile("parsers.conf", filepath.Join("/etc", "parsers.conf"))
-
-	var str strings.Builder
-	str.WriteString("[SERVICE]\n")
-	str.WriteString("    Flush 10\n")
-	str.WriteString("    Daemon off\n")
-	str.WriteString("    Log_Level warn\n")
-	str.WriteString("    Parsers_File  /etc/parsers.conf\n")
-
-	for _, l := range v.logEntries {
-
-		switch l.logType {
-		case LOG_SYSTEM:
-			{
-				addSystemLogging(&str, v.ifcs)
-				addLogginOutput(&str, l, "vsystem")
-			}
-		case LOG_KERNEL:
-			{
-				addKernelLogging(&str)
-				addLogginOutput(&str, l, "vkernel")
-			}
-		case LOG_STDOUT:
-			{
-				addStdoutLogging(&str)
-				addLogginOutput(&str, l, "vstdout")
-			}
-		case LOG_PROGRAMS:
-			{
-				addProgLogging(&str, v.programs)
-				addLogginOutput(&str, l, "vprog")
-			}
-		case LOG_ALL:
-			{
-				addSystemLogging(&str, v.ifcs)
-				addKernelLogging(&str)
-				addStdoutLogging(&str)
-				addProgLogging(&str, v.programs)
-				addLogginOutput(&str, l, "*")
-			}
-		}
-
-	}
-
-	str.WriteString("[FILTER]\n")
-	str.WriteString("    Name record_modifier\n")
-	str.WriteString("    Match *\n")
-	str.WriteString("    Record hostname ${HOSTNAME}\n")
-
-	err := ioutil.WriteFile("/etc/fb.cfg", []byte(str.String()), 0644)
-	if err != nil {
-		logAlways("can not create fluent-bit config file: %s", err.Error())
-		return
-	}
-
-	cmd := exec.Command("/vorteil/fluent-bit", fmt.Sprintf("--config=/etc/fb.cfg"), fmt.Sprintf("--plugin=/vorteil/flb-in_vdisk.so"))
-
-	stderr, err := os.OpenFile("/dev/null", os.O_WRONLY|os.O_APPEND, 0)
-	if err != nil {
-		logError("can not create fluentbit stderr: %s", err.Error())
-		return
-	}
-
-	stdout, err := os.OpenFile("/dev/null", os.O_WRONLY|os.O_APPEND, 0)
-	if err != nil {
-		logError("can not create fluentbit stdout: %s", err.Error())
-		return
-	}
-
-	cmd.Stderr = stderr
-	cmd.Stdout = stdout
-
-	cmd.Env = []string{fmt.Sprintf("HOSTNAME=%s", v.hostname)}
-
-	err = cmd.Start()
-	if err != nil {
-		logAlways("%s", err.Error())
-	}
+	// TODO: logging
+	// writeEtcFile("parsers.conf", filepath.Join("/etc", "parsers.conf"))
+	//
+	// var str strings.Builder
+	// str.WriteString("[SERVICE]\n")
+	// str.WriteString("    Flush 10\n")
+	// str.WriteString("    Daemon off\n")
+	// str.WriteString("    Log_Level warn\n")
+	// str.WriteString("    Parsers_File  /etc/parsers.conf\n")
+	//
+	// for _, l := range v.logEntries {
+	//
+	// 	switch l.logType {
+	// 	case LOG_SYSTEM:
+	// 		{
+	// 			addSystemLogging(&str, v.ifcs)
+	// 			addLogginOutput(&str, l, "vsystem")
+	// 		}
+	// 	case LOG_KERNEL:
+	// 		{
+	// 			addKernelLogging(&str)
+	// 			addLogginOutput(&str, l, "vkernel")
+	// 		}
+	// 	case LOG_STDOUT:
+	// 		{
+	// 			addStdoutLogging(&str)
+	// 			addLogginOutput(&str, l, "vstdout")
+	// 		}
+	// 	case LOG_PROGRAMS:
+	// 		{
+	// 			addProgLogging(&str, v.programs)
+	// 			addLogginOutput(&str, l, "vprog")
+	// 		}
+	// 	case LOG_ALL:
+	// 		{
+	// 			addSystemLogging(&str, v.ifcs)
+	// 			addKernelLogging(&str)
+	// 			addStdoutLogging(&str)
+	// 			addProgLogging(&str, v.programs)
+	// 			addLogginOutput(&str, l, "*")
+	// 		}
+	// 	}
+	//
+	// }
+	//
+	// str.WriteString("[FILTER]\n")
+	// str.WriteString("    Name record_modifier\n")
+	// str.WriteString("    Match *\n")
+	// str.WriteString("    Record hostname ${HOSTNAME}\n")
+	//
+	// err := ioutil.WriteFile("/etc/fb.cfg", []byte(str.String()), 0644)
+	// if err != nil {
+	// 	logAlways("can not create fluent-bit config file: %s", err.Error())
+	// 	return
+	// }
+	//
+	// cmd := exec.Command("/vorteil/fluent-bit", fmt.Sprintf("--config=/etc/fb.cfg"), fmt.Sprintf("--plugin=/vorteil/flb-in_vdisk.so"))
+	//
+	// stderr, err := os.OpenFile("/dev/null", os.O_WRONLY|os.O_APPEND, 0)
+	// if err != nil {
+	// 	logError("can not create fluentbit stderr: %s", err.Error())
+	// 	return
+	// }
+	//
+	// stdout, err := os.OpenFile("/dev/null", os.O_WRONLY|os.O_APPEND, 0)
+	// if err != nil {
+	// 	logError("can not cr	eate fluentbit stdout: %s", err.Error())
+	// 	return
+	// }
+	//
+	// cmd.Stderr = stderr
+	// cmd.Stdout = stdout
+	//
+	// cmd.Env = []string{fmt.Sprintf("HOSTNAME=%s", v.hostname)}
+	//
+	// err = cmd.Start()
+	// if err != nil {
+	// 	logAlways("%s", err.Error())
+	// }
 
 }

@@ -438,37 +438,38 @@ func launchProgram(p *program, hvenvs map[string]string) error {
 
 func (v *Vinitd) Launch() error {
 
-	var wg sync.WaitGroup
-	wg.Add(len(v.programs))
-
-	errors := make(chan error)
-	wgDone := make(chan bool)
-
-	go listenToProcesses(v.programs)
-
-	for _, p := range v.programs {
-
-		go func(p *program) {
-			err := launchProgram(p, v.hypervisorInfo.envs)
-			if err != nil {
-				errors <- err
-			}
-			wg.Done()
-		}(p)
-
-	}
-
-	go func() {
-		wg.Wait()
-		close(wgDone)
-	}()
-
-	select {
-	case <-wgDone:
-		break
-	case err := <-errors:
-		SystemPanic("starting program failed: %s", err.Error())
-	}
+	// TODO: start
+	// var wg sync.WaitGroup
+	// wg.Add(len(v.programs))
+	//
+	// errors := make(chan error)
+	// wgDone := make(chan bool)
+	//
+	// go listenToProcesses(v.programs)
+	//
+	// for _, p := range v.programs {
+	//
+	// 	go func(p *program) {
+	// 		err := launchProgram(p, v.hypervisorInfo.envs)
+	// 		if err != nil {
+	// 			errors <- err
+	// 		}
+	// 		wg.Done()
+	// 	}(p)
+	//
+	// }
+	//
+	// go func() {
+	// 	wg.Wait()
+	// 	close(wgDone)
+	// }()
+	//
+	// select {
+	// case <-wgDone:
+	// 	break
+	// case err := <-errors:
+	// 	SystemPanic("starting program failed: %s", err.Error())
+	// }
 
 	logDebug("all apps started")
 

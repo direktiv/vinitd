@@ -2,6 +2,8 @@ package vorteil
 
 import (
 	"net"
+
+	"github.com/vorteil/vorteil/pkg/vcfg"
 )
 
 type LogLevel int
@@ -99,9 +101,8 @@ const (
 type logFn func(level LogLevel, format string, values ...interface{})
 
 type ifc struct {
-	name string
-	idx  int
-	// tcpdumpHandler *pcap.Handle
+	name   string
+	idx    int
 	netIfc net.Interface
 	addr   *net.IPNet
 	gw     net.IP
@@ -121,13 +122,15 @@ type Vinitd struct {
 
 	hypervisorInfo hv
 
-	vcfg       PersistedConf
-	programs   []*program
-	logEntries []*logEntry
+	vcfg vcfg.VCFG
 
-	ifcs map[string]*ifc
-	dns  []net.IP
-	ntp  []net.IP
+	// vcfg       PersistedConf
+	// programs   []*program
+	// logEntries []*logEntry
+	//
+	// ifcs map[string]*ifc
+	dns []net.IP
+	// ntp  []net.IP
 }
 
 type logEntry struct {

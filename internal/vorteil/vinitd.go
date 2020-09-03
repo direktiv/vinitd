@@ -29,7 +29,8 @@ func New(logging logFn) *Vinitd {
 	rand.Seed(time.Now().UnixNano())
 
 	v := &Vinitd{
-		ifcs: make(map[string]*ifc),
+		// TODO: ifcs
+		// ifcs: make(map[string]*ifc),
 	}
 
 	vlog = logging
@@ -140,7 +141,8 @@ func (v *Vinitd) Setup() error {
 	}
 
 	// update tty to settings in vcfg
-	setupVtty(int(v.vcfg.Kernel.LogType))
+	// TODO: tty
+	// setupVtty(int(v.vcfg.Kernel.LogType))
 
 	go waitForSignal()
 
@@ -155,12 +157,13 @@ func (v *Vinitd) Setup() error {
 
 	// generate hostname before running setup steps in parallel
 	// (v.NetworkSetup and v.etcGenerateFiles both need the hostname value)
-	h := v.vcfg.Net.Hostname[:]
-	hn, err := setHostname(terminatedNullString(h))
-	if err != nil {
-		logWarn("could not set hostname: %s", err.Error())
-	}
-	v.hostname = hn
+	// TODO: hostname
+	// h := v.vcfg.Net.Hostname[:]
+	// hn, err := setHostname(terminatedNullString(h))
+	// if err != nil {
+	// 	logWarn("could not set hostname: %s", err.Error())
+	// }
+	// v.hostname = hn
 
 	errors := make(chan error)
 	wgDone := make(chan bool)
@@ -178,10 +181,11 @@ func (v *Vinitd) Setup() error {
 	}()
 
 	go func() {
-		err = systemConfig(v.sysctls, v.hostname, int(v.vcfg.Kernel.MaxFds))
-		if err != nil {
-			logError("can not setup shared memory: %s", err.Error())
-		}
+		// TODO: fds
+		// err = systemConfig(v.sysctls, v.hostname, int(v.vcfg.Kernel.MaxFds))
+		// if err != nil {
+		// 	logError("can not setup shared memory: %s", err.Error())
+		// }
 		wg.Done()
 	}()
 
@@ -231,14 +235,16 @@ func (v *Vinitd) PostSetup() error {
 	wg.Add(5)
 
 	go func() {
-		setupNFS(v.vcfg.Vfs.NFS)
+		// TODO: nfs
+		// setupNFS(v.vcfg.Vfs.NFS)
 		wg.Done()
 	}()
 
 	go func() {
-		if len(v.logEntries) > 0 {
-			v.startLogging()
-		}
+		// TODO: logging
+		// if len(v.logEntries) > 0 {
+		// 	v.startLogging()
+		// }
 		wg.Done()
 	}()
 
@@ -270,9 +276,10 @@ func (v *Vinitd) PostSetup() error {
 
 	// Setup ChronyD NTP Server
 	go func() {
-		if err := setupChronyD(v.vcfg.Kernel.NTP); err != nil {
-			errors <- err
-		}
+		// TODO: ntp
+		// if err := setupChronyD(v.vcfg.Kernel.NTP); err != nil {
+		// 	errors <- err
+		// }
 		wg.Done()
 	}()
 

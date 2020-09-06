@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"syscall"
+
+	"github.com/vorteil/vorteil/pkg/vcfg"
 )
 
 func resolveNFS(name string) net.IP {
@@ -23,22 +25,19 @@ func resolveNFS(name string) net.IP {
 	return nil
 }
 
-func setupNFS(mounts [4]NFSMount) {
+func setupNFS(mounts []vcfg.NFSSettings) {
 
 	for _, m := range mounts {
 
-		srv := terminatedNullString(m.Srv[:])
-		mp := terminatedNullString(m.MountPoint[:])
-		attrs := terminatedNullString(m.Attrs[:])
-
-		if len(mp) == 0 {
-			return
-		}
+		srv := m.Server
+		mp := m.MountPoint
+		attrs := m.Arguments
 
 		// split it at : to check if it is a server name or ip
+		// format is servernam:mountpoint, e.g. myserver:/tmp
 		srvInfo := strings.SplitN(srv, ":", 2)
 		if len(srvInfo) != 2 {
-			logError("can not parse nfs server %s", srv)
+			logError("can not parse nfs server %s, format server:mount", srv)
 			continue
 		}
 
@@ -59,7 +58,6 @@ func setupNFS(mounts [4]NFSMount) {
 		a = append(a, fmt.Sprintf("addr=%s", s.String()))
 
 		logAlways("nfs mount %s to %s with %s", srvInfo[1], mp, strings.Join(a[:], ","))
-
 		os.MkdirAll(mp, 0755)
 
 		err := syscall.Mount(fmt.Sprintf(":%s", srvInfo[1]), mp, "nfs", 0, strings.Join(a[:], ","))
@@ -67,6 +65,6 @@ func setupNFS(mounts [4]NFSMount) {
 			logError("can not mount NFS: %s", err.Error())
 			continue
 		}
-
 	}
+
 }

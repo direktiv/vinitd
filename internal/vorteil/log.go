@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
 
@@ -98,7 +99,7 @@ func printVersion() error {
 	return nil
 }
 
-func setupVtty(mode int) {
+func setupVtty(mode vcfg.StdoutMode) {
 
 	file, err := os.OpenFile(defaultTTY, os.O_RDWR, 0)
 	if err != nil {

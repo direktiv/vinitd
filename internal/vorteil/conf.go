@@ -19,7 +19,6 @@ import (
 
 	"github.com/vorteil/vorteil/pkg/vcfg"
 	"github.com/vorteil/vorteil/pkg/vimg"
-	// vimg.BootloaderConfig
 )
 
 type pFieldType int
@@ -47,9 +46,7 @@ const (
 	defaultNrProc = 10000
 	defaultCWD    = "/"
 
-	getRequest = "GET"
-
-	// gcpMetadataServerUrl = "http://169.254.169.254/computeMetadata/v1/instance" // NOSONAR known cloud
+	getRequest      = "GET"
 	azureWireServer = "168.63.129.16"          // NOSONAR known cloud
 	metadataURL     = "http://169.254.169.254" // NOSONAR known cloud
 )
@@ -57,9 +54,9 @@ const (
 type cloudReq struct {
 	server string
 
-	interfaceUrl  string
-	customDataUrl string
-	hostnameUrl   string
+	interfaceURL  string
+	customDataURL string
+	hostnameURL   string
 
 	header, query map[string]string
 }
@@ -67,9 +64,9 @@ type cloudReq struct {
 var (
 	azureReq = cloudReq{
 		server:        metadataURL,
-		interfaceUrl:  "%s/metadata/instance/network/interface/%d/ipv4/ipAddress/0/publicIpAddress",
-		customDataUrl: "%s/metadata/instance/compute/customData",
-		hostnameUrl:   "",
+		interfaceURL:  "%s/metadata/instance/network/interface/%d/ipv4/ipAddress/0/publicIpAddress",
+		customDataURL: "%s/metadata/instance/compute/customData",
+		hostnameURL:   "",
 		header: map[string]string{
 			"Metadata": "True",
 			"Host":     "metadata.azure.internal",
@@ -82,9 +79,9 @@ var (
 
 	gcpReq = cloudReq{
 		server:        metadataURL,
-		interfaceUrl:  "%s/computeMetadata/v1/instance/network-interfaces/%d/access-configs/0/external-ip",
-		customDataUrl: "%s/computeMetadata/v1/instance/attributes/vorteil",
-		hostnameUrl:   "%s/computeMetadata/v1/instance/hostname",
+		interfaceURL:  "%s/computeMetadata/v1/instance/network-interfaces/%d/access-configs/0/external-ip",
+		customDataURL: "%s/computeMetadata/v1/instance/attributes/vorteil",
+		hostnameURL:   "%s/computeMetadata/v1/instance/hostname",
 		header: map[string]string{
 			"Host":            "metadata.google.internal",
 			"Metadata-Flavor": "Google",
@@ -93,9 +90,9 @@ var (
 
 	ec2Req = cloudReq{
 		server:        metadataURL,
-		interfaceUrl:  "%s/latest/meta-data/public-ipv4",
-		customDataUrl: "%s/latest/user-data",
-		hostnameUrl:   "%s/latest/meta-data/public-hostname",
+		interfaceURL:  "%s/latest/meta-data/public-ipv4",
+		customDataURL: "%s/latest/user-data",
+		hostnameURL:   "%s/latest/meta-data/public-hostname",
 		header: map[string]string{
 			"Host":     "metadata.ec2.internal",
 			"Metadata": "true",
@@ -257,52 +254,50 @@ func parseProgram(buf []byte) (int, *program, error) {
 	return int(totalLen), p, nil
 }
 
-func (v *Vinitd) loadLoggings(f *os.File) error {
+// func (v *Vinitd) loadLoggings(f *os.File) error {
 
-	// TODO: loadLoggings
+// load app/system logging config
+// region := v.vcfg.Disk.LoggingConfig
+// regionLen := region.Sectors * sectorSize
+//
+// buf := make([]byte, regionLen)
+// _, err := f.ReadAt(buf, int64(region.Lba*sectorSize))
+// if err != nil {
+// 	return err
+// }
+//
+// off := 0
+//
+// for {
+//
+// 	l := &logEntry{
+// 		logType: logType(buf[off]),
+// 	}
+//
+// 	if l.logType == 0 {
+// 		break
+// 	}
+//
+// 	off++ // type
+// 	off++ // size
+//
+// 	for {
+// 		s := terminatedNullString(buf[off:])
+// 		off++ // skip the null terminator
+// 		if len(s) == 0 {
+// 			break
+// 		}
+// 		l.logStrings = append(l.logStrings, s)
+// 		off += len(s)
+// 	}
+//
+// 	v.logEntries = append(v.logEntries, l)
+//
+// }
 
-	// load app/system logging config
-	// region := v.vcfg.Disk.LoggingConfig
-	// regionLen := region.Sectors * sectorSize
-	//
-	// buf := make([]byte, regionLen)
-	// _, err := f.ReadAt(buf, int64(region.Lba*sectorSize))
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// off := 0
-	//
-	// for {
-	//
-	// 	l := &logEntry{
-	// 		logType: logType(buf[off]),
-	// 	}
-	//
-	// 	if l.logType == 0 {
-	// 		break
-	// 	}
-	//
-	// 	off++ // type
-	// 	off++ // size
-	//
-	// 	for {
-	// 		s := terminatedNullString(buf[off:])
-	// 		off++ // skip the null terminator
-	// 		if len(s) == 0 {
-	// 			break
-	// 		}
-	// 		l.logStrings = append(l.logStrings, s)
-	// 		off += len(s)
-	// 	}
-	//
-	// 	v.logEntries = append(v.logEntries, l)
-	//
-	// }
-
-	return nil
-
-}
+// 	return nil
+//
+// }
 
 // func (v *Vinitd) loadConfigs(vcfg vcfg.VCFG) error {
 func (v *Vinitd) loadConfigs() error {
@@ -436,17 +431,7 @@ func (v *Vinitd) readVCFG(disk string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stderr, "number of foo: %v\n", vcfg)
-
 	v.vcfg = vcfg
-	//
-	// v.vcfg = conf
-	//
-	// err = v.loadConfigs(vcfg)
-	// if err != nil {
-	// 	logError("error loading config: %s", err.Error())
-	// 	return err
-	// }
 
 	return nil
 }
@@ -649,56 +634,55 @@ func doMetadataRequest(url string, header, query map[string]string) (string, err
 
 func probe(creq cloudReq, v *Vinitd) {
 
-	// TODO probe
-	// for _, ifc := range v.ifcs {
-	//
-	// 	var url string
-	// 	if v.hypervisorInfo.cloud == CP_EC2 {
-	// 		url = fmt.Sprintf(creq.interfaceUrl, creq.server)
-	// 	} else {
-	// 		url = fmt.Sprintf(creq.interfaceUrl, creq.server, ifc.idx)
-	// 	}
-	//
-	// 	logDebug("probe ip url %s", url)
-	// 	r, err := doMetadataRequest(url, creq.header, creq.query)
-	// 	if err != nil {
-	// 		logWarn("error requesting metadata: %s", err.Error())
-	// 		continue
-	// 	}
-	// 	logDebug("setting metadata %s to %s", fmt.Sprintf(ENV_EXT_IP, ifc.idx), r)
-	// 	v.hypervisorInfo.envs[fmt.Sprintf(ENV_EXT_IP, ifc.idx)] = r
-	//
-	// 	// at the moment ec2 is only one network card
-	// 	if v.hypervisorInfo.cloud == CP_EC2 {
-	// 		break
-	// 	}
-	// }
-	//
-	// url := fmt.Sprintf(creq.customDataUrl, creq.server)
-	// logDebug("probe custom url %s", url)
-	//
-	// userdata, err := doMetadataRequest(url, creq.header, creq.query)
-	//
-	// if err != nil {
-	// 	logDebug("error requesting metadata vorteil: %s", err.Error())
-	// } else {
-	// 	logDebug("setting metadata userdata to %s", userdata)
-	// 	v.hypervisorInfo.envs[ENV_USERDATA] = userdata
-	// }
-	//
-	// // azure doesnt have this value
-	// if len(creq.hostnameUrl) > 0 {
-	// 	url := fmt.Sprintf(creq.hostnameUrl, creq.server)
-	// 	logDebug("probe hostname url %s", url)
-	// 	hn, err := doMetadataRequest(url, creq.header, creq.query)
-	// 	if err != nil {
-	// 		logDebug("error requesting metadata hostname: %s", err.Error())
-	// 	} else {
-	// 		logDebug("setting metadata ENV_EXT_HOSTNAME %s", hn)
-	// 		v.hypervisorInfo.envs[ENV_EXT_HOSTNAME] = hn
-	// 	}
-	//
-	// }
+	for _, ifc := range v.ifcs {
+
+		var url string
+		if v.hypervisorInfo.cloud == CP_EC2 {
+			url = fmt.Sprintf(creq.interfaceURL, creq.server)
+		} else {
+			url = fmt.Sprintf(creq.interfaceURL, creq.server, ifc.idx)
+		}
+
+		logDebug("probe ip url %s", url)
+		r, err := doMetadataRequest(url, creq.header, creq.query)
+		if err != nil {
+			logWarn("error requesting metadata: %s", err.Error())
+			continue
+		}
+		logDebug("setting metadata %s to %s", fmt.Sprintf(ENV_EXT_IP, ifc.idx), r)
+		v.hypervisorInfo.envs[fmt.Sprintf(ENV_EXT_IP, ifc.idx)] = r
+
+		// at the moment ec2 is only one network card
+		if v.hypervisorInfo.cloud == CP_EC2 {
+			break
+		}
+	}
+
+	url := fmt.Sprintf(creq.customDataURL, creq.server)
+	logDebug("probe custom url %s", url)
+
+	userdata, err := doMetadataRequest(url, creq.header, creq.query)
+
+	if err != nil {
+		logDebug("error requesting metadata vorteil: %s", err.Error())
+	} else {
+		logDebug("setting metadata userdata to %s", userdata)
+		v.hypervisorInfo.envs[ENV_USERDATA] = userdata
+	}
+
+	// azure doesnt have this value
+	if len(creq.hostnameURL) > 0 {
+		url := fmt.Sprintf(creq.hostnameURL, creq.server)
+		logDebug("probe hostname url %s", url)
+		hn, err := doMetadataRequest(url, creq.header, creq.query)
+		if err != nil {
+			logDebug("error requesting metadata hostname: %s", err.Error())
+		} else {
+			logDebug("setting metadata ENV_EXT_HOSTNAME %s", hn)
+			v.hypervisorInfo.envs[ENV_EXT_HOSTNAME] = hn
+		}
+
+	}
 
 }
 
@@ -708,19 +692,17 @@ func basicEnv(v *Vinitd) {
 	v.hypervisorInfo.envs[ENV_HYPERVISOR] = v.hypervisorInfo.hypervisorString()
 	v.hypervisorInfo.envs[ENV_CLOUD_PROVIDER] = v.hypervisorInfo.cloudString()
 
-	// TODO: ifcs
-	// v.hypervisorInfo.envs[ENV_ETH_COUNT] = fmt.Sprintf("%d", len(v.ifcs))
+	v.hypervisorInfo.envs[ENV_ETH_COUNT] = fmt.Sprintf("%d", len(v.ifcs))
 	v.hypervisorInfo.envs[ENV_HOSTNAME] = v.hostname
 	v.hypervisorInfo.envs[ENV_EXT_HOSTNAME] = v.hostname
 	v.hypervisorInfo.envs[ENV_USERDATA] = ""
 
-	// TODO: ifcs
-	// for _, ifc := range v.ifcs {
-	// 	v.hypervisorInfo.envs[fmt.Sprintf(ENV_IP, ifc.idx)] = ifc.addr.IP.String()
-	//
-	// 	// we set the env variables with internal so they are never empty
-	// 	v.hypervisorInfo.envs[fmt.Sprintf(ENV_EXT_IP, ifc.idx)] = ifc.addr.IP.String()
-	// }
+	for _, ifc := range v.ifcs {
+		v.hypervisorInfo.envs[fmt.Sprintf(ENV_IP, ifc.idx)] = ifc.addr.IP.String()
+
+		// we set the env variables with internal so they are never empty
+		v.hypervisorInfo.envs[fmt.Sprintf(ENV_EXT_IP, ifc.idx)] = ifc.addr.IP.String()
+	}
 
 }
 
@@ -750,8 +732,7 @@ func hypervisorGuess(v *Vinitd, bios string) (hypervisor, cloud) {
 		return HV_VIRTUALBOX, CP_NONE
 	} else if strings.HasPrefix(bios, "Phoenix Technologies LTD") {
 		// start guestinfo vmtools
-		// TODO: vmware
-		// startVMTools(len(v.ifcs), v.hostname)
+		startVMTools(len(v.ifcs), v.hostname)
 		return HV_VMWARE, CP_NONE
 	} else if strings.HasPrefix(bios, "Google") {
 		return HV_KVM, CP_GCP

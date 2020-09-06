@@ -1,20 +1,17 @@
 package vorteil
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
-	"golang.org/x/sys/unix"
+	"github.com/vorteil/vorteil/pkg/vcfg"
 )
 
 const (
@@ -27,8 +24,8 @@ const (
 	userID = 1000
 )
 
-func pickFromEnv(env string, p *program) string {
-	for _, e := range p.env.values {
+func pickFromEnv(env string, p vcfg.Program) string {
+	for _, e := range p.Env {
 		es := strings.SplitN(e, "=", 2)
 		if es[0] == env {
 			return es[1]
@@ -37,21 +34,21 @@ func pickFromEnv(env string, p *program) string {
 	return ""
 }
 
-func calculatePath(p *program) string {
+func calculatePath(p vcfg.Program) string {
 
 	// nothing to caluclate if absolute
-	if path.IsAbs(p.path) {
-		return p.path
+	if path.IsAbs(p.Binary) {
+		return p.Binary
 	}
 
 	// if that file exists we return
-	if _, err := os.Stat(filepath.Join(p.cwd, p.path)); err == nil {
+	if _, err := os.Stat(filepath.Join(p.Cwd, p.Binary)); err == nil {
 		// if that file exists we return the absolute path
 		// if there is an error we are trying to just add a leading /
-		path, err := filepath.Abs(filepath.Join(p.cwd, p.path))
+		path, err := filepath.Abs(filepath.Join(p.Cwd, p.Binary))
 		if err != nil {
-			logError("can not create path for %s, err %v", p.path, err)
-			return fmt.Sprintf("/%s", p.path)
+			logError("can not create path for %s, err %v", p.Binary, err)
+			return fmt.Sprintf("/%s", p.Binary)
 		}
 		return path
 	}
@@ -60,8 +57,8 @@ func calculatePath(p *program) string {
 	pathEnv := strings.Split(pickFromEnv(pathEnvName, p), pathSeperator)
 	if len(pathEnv) > 0 {
 		for _, c := range pathEnv {
-			if _, err := os.Stat(filepath.Join(c, p.path)); err == nil {
-				return filepath.Join(c, p.path)
+			if _, err := os.Stat(filepath.Join(c, p.Binary)); err == nil {
+				return filepath.Join(c, p.Binary)
 			}
 		}
 	}
@@ -69,89 +66,89 @@ func calculatePath(p *program) string {
 	return ""
 }
 
-func (p *program) launch() error {
+// func (p *vcfg.Program) launch() error {
 
-	// strace override
-	if p.strace == 0x1 {
-		p.args.values = append(p.args.values, "")
-		copy(p.args.values[1:], p.args.values)
-		p.args.values[0] = p.fpath
-		p.fpath = "/vorteil/strace"
-	}
-
-	cmd := exec.Command(p.fpath, p.args.values...)
-	cmd.Env = p.env.values
-	cmd.Dir = p.cwd
-
-	var user string
-	var rid int
-
-	switch p.privilege {
-	case 0: // root privilege
-		rid = rootID
-		user = "root"
-	case 1: // superuser privilege
-		user = fmt.Sprintf("%s (superuser)", p.vinitd.user)
-		rid = userID
-	default: // user privilege
-		user = p.vinitd.user
-		rid = userID
-	}
-
-	// either root or uid 1000
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Credential: &syscall.Credential{Uid: uint32(rid), Gid: uint32(rid)},
-	}
-
-	if p.privilege == 1 {
-		cmd.SysProcAttr.AmbientCaps = []uintptr{
-			unix.CAP_CHOWN,
-			unix.CAP_DAC_OVERRIDE,
-			unix.CAP_DAC_READ_SEARCH,
-			unix.CAP_FOWNER,
-			unix.CAP_IPC_OWNER,
-			unix.CAP_NET_ADMIN,
-			unix.CAP_MKNOD,
-			unix.CAP_NET_BIND_SERVICE,
-			unix.CAP_NET_RAW,
-			unix.CAP_SYS_ADMIN,
-		}
-	}
-
-	logDebug("starting as %s, uid %d", user, rid)
-
-	// Create stderr dir if it does not exists
-	if _, err := os.Stat(filepath.Dir(p.stderr)); os.IsNotExist(err) {
-		os.MkdirAll(filepath.Dir(p.stderr), 0)
-	}
-
-	stderr, err := os.OpenFile(p.stderr, os.O_WRONLY|os.O_APPEND, 0)
-	if err != nil {
-		return err
-	}
-
-	// Create stdout dir if it does not exists
-	if _, err := os.Stat(filepath.Dir(p.stdout)); os.IsNotExist(err) {
-		os.MkdirAll(filepath.Dir(p.stdout), 0)
-	}
-
-	stdout, err := os.OpenFile(p.stdout, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0)
-	if err != nil {
-		return err
-	}
-
-	cmd.Stderr = stderr
-	cmd.Stdout = stdout
-
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
-
-	p.status = STATUS_RUN
-
-	return nil
-}
+// strace override
+// if p.strace == 0x1 {
+// 	p.args.values = append(p.args.values, "")
+// 	copy(p.args.values[1:], p.args.values)
+// 	p.args.values[0] = p.fpath
+// 	p.fpath = "/vorteil/strace"
+// }
+//
+// cmd := exec.Command(p.fpath, p.args.values...)
+// cmd.Env = p.env.values
+// cmd.Dir = p.cwd
+//
+// var user string
+// var rid int
+//
+// switch p.privilege {
+// case 0: // root privilege
+// 	rid = rootID
+// 	user = "root"
+// case 1: // superuser privilege
+// 	user = fmt.Sprintf("%s (superuser)", p.vinitd.user)
+// 	rid = userID
+// default: // user privilege
+// 	user = p.vinitd.user
+// 	rid = userID
+// }
+//
+// // either root or uid 1000
+// cmd.SysProcAttr = &syscall.SysProcAttr{
+// 	Credential: &syscall.Credential{Uid: uint32(rid), Gid: uint32(rid)},
+// }
+//
+// if p.privilege == 1 {
+// 	cmd.SysProcAttr.AmbientCaps = []uintptr{
+// 		unix.CAP_CHOWN,
+// 		unix.CAP_DAC_OVERRIDE,
+// 		unix.CAP_DAC_READ_SEARCH,
+// 		unix.CAP_FOWNER,
+// 		unix.CAP_IPC_OWNER,
+// 		unix.CAP_NET_ADMIN,
+// 		unix.CAP_MKNOD,
+// 		unix.CAP_NET_BIND_SERVICE,
+// 		unix.CAP_NET_RAW,
+// 		unix.CAP_SYS_ADMIN,
+// 	}
+// }
+//
+// logDebug("starting as %s, uid %d", user, rid)
+//
+// // Create stderr dir if it does not exists
+// if _, err := os.Stat(filepath.Dir(p.stderr)); os.IsNotExist(err) {
+// 	os.MkdirAll(filepath.Dir(p.stderr), 0)
+// }
+//
+// stderr, err := os.OpenFile(p.stderr, os.O_WRONLY|os.O_APPEND, 0)
+// if err != nil {
+// 	return err
+// }
+//
+// // Create stdout dir if it does not exists
+// if _, err := os.Stat(filepath.Dir(p.stdout)); os.IsNotExist(err) {
+// 	os.MkdirAll(filepath.Dir(p.stdout), 0)
+// }
+//
+// stdout, err := os.OpenFile(p.stdout, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0)
+// if err != nil {
+// 	return err
+// }
+//
+// cmd.Stderr = stderr
+// cmd.Stdout = stdout
+//
+// err = cmd.Start()
+// if err != nil {
+// 	return err
+// }
+//
+// p.status = STATUS_RUN
+//
+// return nil
+// }
 
 // bootstrapWaitForFile hangs process until the file appears, times out after 30 seconds.
 func bootstrapWaitForFile(b *bootstrapInstruction, p *program) {
@@ -394,44 +391,56 @@ func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 	return newEnvs
 }
 
-func launchProgram(p *program, hvenvs map[string]string) error {
+func (v *Vinitd) launchProgram(p vcfg.Program) error {
 
 	fpath := calculatePath(p)
 
 	if len(fpath) == 0 {
-		logError("application %s (%s) does not exist", p.path, fpath)
-		return fmt.Errorf("program %s can not be found", p.path)
+		logError("application %s (%s) does not exist", p.Binary, fpath)
+		return fmt.Errorf("program %s can not be found", p.Binary)
 	}
 
-	p.fpath = fpath
+	// we can add the program to the list now
+	np := &program{
+		path:     fpath,
+		vcfgProg: p,
+	}
 
-	logDebug("launching %s", fpath)
+	v.programs = append(v.programs, np)
+	logAlways("launching %s", fpath)
+
+	logAlways("launching2 %v", p.Args)
 
 	// get envs and substitue with cloud args
-	pEnvs := envs(p.env.values, hvenvs)
-	p.env.values = pEnvs
+	pEnvs := envs(p.Env, v.hypervisorInfo.envs)
+	np.env.values = pEnvs
+	// np.env.count = len(pEnvs)
+
+	logDebug("launching2 %v", p.Args)
 
 	// replace args cloud args as well plus existing envs
-	p.args.values = args(p.args.values[1:], pEnvs)
+	// np.args.values = args(p.Args[1:], pEnvs)
+	// np.args.count =
 
 	// run bootstrap functions
-	p.bootstrap()
+	// TODO bootstrap
+	// p.bootstrap()
 
-	err := p.launch()
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// that can be a missing binary or missing linker
-			// let's try to make the error message better
-			// if the binary exists it has to be a missing linker
-			if _, err := os.Stat(fpath); err == nil {
-				return fmt.Errorf("ld linker missing for %s", fpath)
-			}
-
-			return fmt.Errorf("%s application missing", fpath)
-
-		}
-		return err
-	}
+	// err := p.launch()
+	// if err != nil {
+	// 	if errors.Is(err, os.ErrNotExist) {
+	// 		// that can be a missing binary or missing linker
+	// 		// let's try to make the error message better
+	// 		// if the binary exists it has to be a missing linker
+	// 		if _, err := os.Stat(fpath); err == nil {
+	// 			return fmt.Errorf("ld linker missing for %s", fpath)
+	// 		}
+	//
+	// 		return fmt.Errorf("%s application missing", fpath)
+	//
+	// 	}
+	// 	return err
+	// }
 
 	return nil
 }
@@ -439,37 +448,40 @@ func launchProgram(p *program, hvenvs map[string]string) error {
 func (v *Vinitd) Launch() error {
 
 	// TODO: start
-	// var wg sync.WaitGroup
-	// wg.Add(len(v.programs))
-	//
-	// errors := make(chan error)
-	// wgDone := make(chan bool)
-	//
+	var wg sync.WaitGroup
+	wg.Add(len(v.vcfg.Programs))
+
+	logAlways("starting %d programs", len(v.vcfg.Programs))
+
+	errors := make(chan error)
+	wgDone := make(chan bool)
+
+	// TODO: listen
 	// go listenToProcesses(v.programs)
-	//
-	// for _, p := range v.programs {
-	//
-	// 	go func(p *program) {
-	// 		err := launchProgram(p, v.hypervisorInfo.envs)
-	// 		if err != nil {
-	// 			errors <- err
-	// 		}
-	// 		wg.Done()
-	// 	}(p)
-	//
-	// }
-	//
-	// go func() {
-	// 	wg.Wait()
-	// 	close(wgDone)
-	// }()
-	//
-	// select {
-	// case <-wgDone:
-	// 	break
-	// case err := <-errors:
-	// 	SystemPanic("starting program failed: %s", err.Error())
-	// }
+
+	for _, p := range v.vcfg.Programs {
+
+		go func(p vcfg.Program) {
+			err := v.launchProgram(p)
+			if err != nil {
+				errors <- err
+			}
+			wg.Done()
+		}(p)
+
+	}
+
+	go func() {
+		wg.Wait()
+		close(wgDone)
+	}()
+
+	select {
+	case <-wgDone:
+		break
+	case err := <-errors:
+		SystemPanic("starting program failed: %s", err.Error())
+	}
 
 	logDebug("all apps started")
 

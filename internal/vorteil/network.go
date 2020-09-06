@@ -6,6 +6,7 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
+	"sort"
 	"time"
 	"unsafe"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/client4"
 	"github.com/vishvananda/netlink"
+	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
 
@@ -390,7 +392,7 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 	// if ack is not successful we panic later
 	router := dhcpv4.GetIP(dhcpv4.OptionRouter, offer.Options)
 	mask := dhcpv4.GetIP(dhcpv4.OptionSubnetMask, offer.Options)
-	dhcpServerIp := dhcpv4.GetIP(dhcpv4.OptionServerIdentifier, offer.Options)
+	dhcpServerIP := dhcpv4.GetIP(dhcpv4.OptionServerIdentifier, offer.Options)
 
 	if len(offer.Options.Get(dhcpv4.GenericOptionCode(azureEndpointServerOption))) > 0 {
 		v.hypervisorInfo.cloud = CP_AZURE
@@ -406,7 +408,7 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 		renew = int(binary.BigEndian.Uint32(rv))
 	}
 
-	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", dhcpServerIp.String(), dhcpv4.ServerPort))
+	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", dhcpServerIP.String(), dhcpv4.ServerPort))
 	if err != nil {
 		logError("can not parse server address: %s", err.Error())
 		return err
@@ -424,7 +426,8 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 
 	// add DNS
 	v.dns = append(v.dns, offer.DNS()...)
-	// TODO: ntp
+
+	// TODO: ntp, at the moment we only use provided ntp servers
 	// v.ntp = append(v.ntp, offer.NTPServers()...)
 
 	go func(name string, client *client4.Client, offer *dhcpv4.DHCPv4) {
@@ -440,7 +443,7 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 
 		for {
 			<-time.After(time.Duration(renew) * time.Second)
-			logDebug("renew with %v", dhcpServerIp)
+			logDebug("renew with %v", dhcpServerIP)
 			renewDHCP(name, client, offer, cid, xid)
 		}
 
@@ -502,16 +505,24 @@ func startLink(name string) (netlink.Link, error) {
 
 }
 
-func handleNetworkLink(interf *ifc, ifcg IfaceCfg, v *Vinitd, errCh chan error, wg *sync.WaitGroup) {
+func handleNetworkLink(interf *ifc, ifcg vcfg.NetworkInterface, v *Vinitd, errCh chan error, wg *sync.WaitGroup) {
 
-	if ifcg.IP != 0 {
-		// static ip
-		ip := networkInt2IP(ifcg.IP)
-		mask := networkInt2IP(ifcg.Mask)
-		gw := networkInt2IP(ifcg.Gateway)
+	if ifcg.IP != "dhcp" {
 
-		configInterface(interf, ip, mask, gw)
-		wg.Done()
+		go func() {
+			// static ip
+			ip := net.ParseIP(ifcg.IP)
+			mask := net.ParseIP(ifcg.Mask)
+			gw := net.ParseIP(ifcg.Gateway)
+
+			if ip == nil || mask == nil || gw == nil {
+				errCh <- fmt.Errorf("ip, mask or gateway is not valid")
+				wg.Done()
+				return
+			}
+			configInterface(interf, ip, mask, gw)
+			wg.Done()
+		}()
 
 	} else {
 
@@ -528,8 +539,9 @@ func handleNetworkLink(interf *ifc, ifcg IfaceCfg, v *Vinitd, errCh chan error, 
 }
 
 // logFunc is getting passed here so it can be easier to test the output in the Go tests
-func handleNetworkTCPDump(interf *ifc, ifcg IfaceCfg, errCh chan error, wg *sync.WaitGroup, logFunc func(format string, values ...interface{})) {
-	if ifcg.TCPDump == 1 {
+func handleNetworkTCPDump(interf *ifc, ifcg vcfg.NetworkInterface,
+	errCh chan error, wg *sync.WaitGroup) {
+	if ifcg.TCPDUMP {
 		deviceFlag := fmt.Sprintf("--device=%s", interf.name)
 
 		// Create tcpdump command
@@ -545,7 +557,7 @@ func handleNetworkTCPDump(interf *ifc, ifcg IfaceCfg, errCh chan error, wg *sync
 		go func(scanner *bufio.Scanner) {
 			for scanner.Scan() {
 				if line := scanner.Text(); line != "" {
-					logFunc(line)
+					logAlways(line)
 				}
 			}
 		}(bufio.NewScanner(tcpdumpReader))
@@ -569,7 +581,7 @@ func (v *Vinitd) NetworkSetup() error {
 	}
 
 	// interface counter
-	// ic := 0
+	ic := 0
 
 	var wg sync.WaitGroup
 	errCh := make(chan error)
@@ -583,6 +595,8 @@ func (v *Vinitd) NetworkSetup() error {
 		if deviceType < DEVTYPE_NET {
 			continue
 		}
+
+		logDebug("configure %s", i.Name)
 
 		link, err := startLink(i.Name)
 		if err != nil {
@@ -601,26 +615,29 @@ func (v *Vinitd) NetworkSetup() error {
 			netlink.LinkSetMTU(link, 65536)
 		} else {
 
-			// TODO: network
 			// add the device to the list
-			// ifName := fmt.Sprintf("eth%d", ic)
-			// v.ifcs[ifName] = &ifc{
-			// 	name:   ifName,
-			// 	idx:    ic,
-			// 	netIfc: i,
-			// }
-			//
-			// ifcg := v.vcfg.Net.Iface[ic]
-			//
-			// logDebug("set mtu to %d for %s", ifcg.MTU, i.Name)
-			// netlink.LinkSetMTU(link, int(ifcg.MTU))
-			//
-			// setTSOValues(i.Name, ifcg.TSOEnabled)
-			//
-			// wg.Add(2)
-			// handleNetworkTCPDump(v.ifcs[ifName], ifcg, errCh, &wg, logAlways)
-			// handleNetworkLink(v.ifcs[ifName], ifcg, v, errCh, &wg)
-			// ic++
+			ifName := fmt.Sprintf("eth%d", ic)
+			v.ifcs[ifName] = &ifc{
+				name:   ifName,
+				idx:    ic,
+				netIfc: i,
+			}
+
+			ifcg := v.vcfg.Networks[ic]
+
+			logDebug("set mtu to %d for %s", ifcg.MTU, i.Name)
+			netlink.LinkSetMTU(link, int(ifcg.MTU))
+
+			logDebug("disable tso: %v", ifcg.DisableTCPSegmentationOffloading)
+			if ifcg.DisableTCPSegmentationOffloading {
+				setTSOValues(i.Name, 0)
+			} else {
+				setTSOValues(i.Name, 1)
+			}
+			wg.Add(2)
+			handleNetworkTCPDump(v.ifcs[ifName], ifcg, errCh, &wg)
+			handleNetworkLink(v.ifcs[ifName], ifcg, v, errCh, &wg)
+			ic++
 		}
 	}
 
@@ -640,27 +657,26 @@ func (v *Vinitd) NetworkSetup() error {
 
 	logDebug("network configured")
 
-	// TODO: network
 	// Sort interface keys for printing
-	// ifcKeys := make([]string, 0, len(v.ifcs))
-	// for k := range v.ifcs {
-	// 	ifcKeys = append(ifcKeys, k)
-	// }
-	//
-	// sort.Strings(ifcKeys)
-	// for _, iKey := range ifcKeys {
-	// 	logAlways("%s ip\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].addr.IP.String())
-	// 	logAlways("%s mask\t: %s", v.ifcs[iKey].name, net.IP(v.ifcs[iKey].addr.Mask).String())
-	// 	logAlways("%s gateway\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].gw.String())
-	// }
-	//
-	// if len(v.ifcs) == 0 {
-	// 	logAlways("ip\t: no network devices available")
-	// }
-	//
-	// configRoutes(v.vcfg.Net.Route)
-	//
-	// go configQueues(v.ifcs)
+	ifcKeys := make([]string, 0, len(v.ifcs))
+	for k := range v.ifcs {
+		ifcKeys = append(ifcKeys, k)
+	}
+
+	sort.Strings(ifcKeys)
+	for _, iKey := range ifcKeys {
+		logAlways("%s ip\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].addr.IP.String())
+		logAlways("%s mask\t: %s", v.ifcs[iKey].name, net.IP(v.ifcs[iKey].addr.Mask).String())
+		logAlways("%s gateway\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].gw.String())
+	}
+
+	if len(v.ifcs) == 0 {
+		logAlways("ip\t: no network devices available")
+	}
+
+	configRoutes(v.vcfg.Routing)
+
+	go configQueues(v.ifcs)
 
 	return nil
 }
@@ -694,6 +710,10 @@ func validateHostname(hostname string) (string, error) {
 
 	var h string
 	printfStr := "%s%s"
+
+	if len(hostname) == 0 {
+		return "", fmt.Errorf("hostname can not be empty")
+	}
 
 	elemRegex, err := regexp.Compile(`[a-z0-9-]`)
 	if err != nil {
@@ -742,41 +762,42 @@ func trimString(s string, n int) string {
 	return s[:n]
 }
 
-func configRoutes(routes [16]IfaceRoute) {
+func configRoutes(routes []vcfg.Route) {
 
 	for _, r := range routes {
 
-		// empty means there is nothing coming anymore
-		if r.Dst == 0 {
-			break
+		dst, nw, err := net.ParseCIDR(r.Destination)
+		if err != nil {
+			logError("can not set route destination: %v", r.Destination)
+			continue
 		}
 
-		network := &net.IPNet{
-			IP:   networkInt2IP(r.Dst),
-			Mask: net.IPMask(networkInt2IP(r.Mask)),
+		gw := net.ParseIP(r.Gateway)
+		if gw == nil {
+			logError("gateway %s invalid", r.Gateway)
+			continue
 		}
-
-		gw := networkInt2IP(r.Gw)
-		eth := fmt.Sprintf("eth%d", r.Iface)
 
 		// check if gateway is in that network
 		// if not, we need to create a direct link
-		if !network.Contains(gw) {
-			err := addNetworkRoute4(gw, net.IPv4bcast, nil, eth, unix.RTF_UP|unix.RTF_HOST)
+		if !nw.Contains(gw) {
+			err := addNetworkRoute4(gw, net.IPv4bcast, nil, r.Interface,
+				unix.RTF_UP|unix.RTF_HOST)
 			if err != nil {
 				logError("can not set route direct link: %v", err)
 				continue
 			}
 		} else {
-			// addNetworkRoute4(dst, mask, gw net.IP, dev string, flags int)
-			err := addNetworkRoute4(gw, net.IP(network.Mask), nil, eth, unix.RTF_UP|unix.RTF_HOST)
+			err := addNetworkRoute4(gw, net.IP(nw.Mask), nil, r.Interface,
+				unix.RTF_UP|unix.RTF_HOST)
 			if err != nil {
 				logError("can not set route in network: %v", err)
 				continue
 			}
 		}
 
-		err := addNetworkRoute4(network.IP, net.IP(network.Mask), gw, eth, unix.RTF_UP|unix.RTF_STATIC|unix.RTF_GATEWAY)
+		err = addNetworkRoute4(dst, net.IP(nw.Mask), gw, r.Interface,
+			unix.RTF_UP|unix.RTF_STATIC|unix.RTF_GATEWAY)
 		if err != nil {
 			logError("can not set route: %v", err)
 			continue

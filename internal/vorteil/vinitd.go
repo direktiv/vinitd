@@ -29,8 +29,7 @@ func New(logging logFn) *Vinitd {
 	rand.Seed(time.Now().UnixNano())
 
 	v := &Vinitd{
-		// TODO: ifcs
-		// ifcs: make(map[string]*ifc),
+		ifcs: make(map[string]*ifc),
 	}
 
 	vlog = logging
@@ -141,8 +140,7 @@ func (v *Vinitd) Setup() error {
 	}
 
 	// update tty to settings in vcfg
-	// TODO: tty
-	// setupVtty(int(v.vcfg.Kernel.LogType))
+	setupVtty(v.vcfg.System.StdoutMode)
 
 	go waitForSignal()
 
@@ -156,14 +154,13 @@ func (v *Vinitd) Setup() error {
 	printVersion()
 
 	// generate hostname before running setup steps in parallel
-	// (v.NetworkSetup and v.etcGenerateFiles both need the hostname value)
-	// TODO: hostname
-	// h := v.vcfg.Net.Hostname[:]
-	// hn, err := setHostname(terminatedNullString(h))
-	// if err != nil {
-	// 	logWarn("could not set hostname: %s", err.Error())
-	// }
-	// v.hostname = hn
+	logDebug("set hostname to %s", v.vcfg.System.Hostname)
+	hn, err := setHostname(v.vcfg.System.Hostname)
+	if err != nil {
+		logWarn("could not set hostname: %s", err.Error())
+	} else {
+		v.hostname = hn
+	}
 
 	errors := make(chan error)
 	wgDone := make(chan bool)
@@ -181,11 +178,10 @@ func (v *Vinitd) Setup() error {
 	}()
 
 	go func() {
-		// TODO: fds
-		// err = systemConfig(v.sysctls, v.hostname, int(v.vcfg.Kernel.MaxFds))
-		// if err != nil {
-		// 	logError("can not setup shared memory: %s", err.Error())
-		// }
+		err = systemConfig(v.vcfg.Sysctl, v.hostname, int(v.vcfg.System.MaxFDs))
+		if err != nil {
+			logError("can not setup shared memory: %s", err.Error())
+		}
 		wg.Done()
 	}()
 
@@ -221,7 +217,7 @@ func (v *Vinitd) Setup() error {
 func (v *Vinitd) PostSetup() error {
 
 	// start a DNS on 127.0.0.1
-	err := v.startDNS(defaultDnsAddr)
+	err := v.startDNS(defaultDNSAddr)
 
 	// we might be able to run
 	if err != nil {
@@ -235,16 +231,14 @@ func (v *Vinitd) PostSetup() error {
 	wg.Add(5)
 
 	go func() {
-		// TODO: nfs
-		// setupNFS(v.vcfg.Vfs.NFS)
+		setupNFS(v.vcfg.NFS)
 		wg.Done()
 	}()
 
 	go func() {
-		// TODO: logging
-		// if len(v.logEntries) > 0 {
-		// 	v.startLogging()
-		// }
+		if len(v.vcfg.Logging) > 0 {
+			v.startLogging()
+		}
 		wg.Done()
 	}()
 
@@ -257,12 +251,12 @@ func (v *Vinitd) PostSetup() error {
 			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = HV_UNKNOWN, CP_UNKNOWN
 			wg.Done()
 			return
-		} else {
-			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hypervisorGuess(v, string(bios))
 		}
 
+		v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hypervisorGuess(v, string(bios))
 		fetchCloudMetadata(v)
 		wg.Done()
+
 	}()
 
 	// prepare shell if --shell is provided
@@ -276,10 +270,9 @@ func (v *Vinitd) PostSetup() error {
 
 	// Setup ChronyD NTP Server
 	go func() {
-		// TODO: ntp
-		// if err := setupChronyD(v.vcfg.Kernel.NTP); err != nil {
-		// 	errors <- err
-		// }
+		if err := setupChronyD(v.vcfg.System.NTP); err != nil {
+			errors <- err
+		}
 		wg.Done()
 	}()
 

@@ -29,13 +29,13 @@ const (
 	BOOTSTRAP_WAIT_FILE                        = iota
 )
 
-const (
-	LOG_SYSTEM   logType = 1
-	LOG_KERNEL   logType = 2
-	LOG_STDOUT   logType = 3
-	LOG_PROGRAMS logType = 4
-	LOG_ALL      logType = 7
-)
+// const (
+// 	LOG_SYSTEM   logType = 1
+// 	LOG_KERNEL   logType = 2
+// 	LOG_STDOUT   logType = 3
+// 	LOG_PROGRAMS logType = 4
+// 	LOG_ALL      logType = 7
+// )
 
 const (
 	ENV_HYPERVISOR     = "HYPERVISOR"
@@ -117,20 +117,16 @@ type hv struct {
 type Vinitd struct {
 	diskname string
 	hostname string
-	sysctls  map[string]string
-	user     string
+
+	user string
 
 	hypervisorInfo hv
 
 	vcfg vcfg.VCFG
 
-	// vcfg       PersistedConf
-	// programs   []*program
-	// logEntries []*logEntry
-	//
-	// ifcs map[string]*ifc
-	dns []net.IP
-	// ntp  []net.IP
+	programs []*program
+	ifcs     map[string]*ifc
+	dns      []net.IP
 }
 
 type logEntry struct {
@@ -151,19 +147,25 @@ type programConf struct {
 }
 
 type program struct {
+	path     string
+	vcfgProg vcfg.Program
+
+	env  programConf
+	args programConf
+	// old
+
 	vinitd *Vinitd
 
 	status status
 
-	path           string
 	fpath          string
 	cwd            string
 	stdout, stderr string
 	privilege      byte // 0 = root, 1 = superuser, 2 = user
 	strace         byte
 
-	env        programConf
-	args       programConf
+	// env        programConf
+	// args       programConf
 	logs       programConf
 	bootstrapc uint16
 	bootstraps []*bootstrapInstruction

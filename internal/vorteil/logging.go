@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
 
@@ -17,12 +18,18 @@ const (
 	inputString = "[INPUT]\n"
 	vlogDir     = "/vlogs"
 	vlogType    = "vlogfs"
+
+	logSystem = "system"
+	logKernel = "kernel"
+	logStdout = "stdout"
+	logProgs  = "programs"
+	logAll    = "all"
 )
 
-func addLogginOutput(sb *strings.Builder, logEntry *logEntry, match string) {
+func addLogginOutput(sb *strings.Builder, logEntry vcfg.Logging, match string) {
 	sb.WriteString("[OUTPUT]\n")
 
-	for _, l := range logEntry.logStrings {
+	for _, l := range logEntry.Config {
 		s := strings.SplitN(l, "=", 2)
 		if len(s) != 2 {
 			logError("can not add logging output for %s", s)
@@ -137,50 +144,50 @@ func addProgLogging(sb *strings.Builder, programs []*program) {
 
 func (v *Vinitd) startLogging() {
 
-	// TODO: logging
-	// writeEtcFile("parsers.conf", filepath.Join("/etc", "parsers.conf"))
-	//
-	// var str strings.Builder
-	// str.WriteString("[SERVICE]\n")
-	// str.WriteString("    Flush 10\n")
-	// str.WriteString("    Daemon off\n")
-	// str.WriteString("    Log_Level warn\n")
-	// str.WriteString("    Parsers_File  /etc/parsers.conf\n")
-	//
-	// for _, l := range v.logEntries {
-	//
-	// 	switch l.logType {
-	// 	case LOG_SYSTEM:
-	// 		{
-	// 			addSystemLogging(&str, v.ifcs)
-	// 			addLogginOutput(&str, l, "vsystem")
-	// 		}
-	// 	case LOG_KERNEL:
-	// 		{
-	// 			addKernelLogging(&str)
-	// 			addLogginOutput(&str, l, "vkernel")
-	// 		}
-	// 	case LOG_STDOUT:
-	// 		{
-	// 			addStdoutLogging(&str)
-	// 			addLogginOutput(&str, l, "vstdout")
-	// 		}
-	// 	case LOG_PROGRAMS:
-	// 		{
-	// 			addProgLogging(&str, v.programs)
-	// 			addLogginOutput(&str, l, "vprog")
-	// 		}
-	// 	case LOG_ALL:
-	// 		{
-	// 			addSystemLogging(&str, v.ifcs)
-	// 			addKernelLogging(&str)
-	// 			addStdoutLogging(&str)
-	// 			addProgLogging(&str, v.programs)
-	// 			addLogginOutput(&str, l, "*")
-	// 		}
-	// 	}
-	//
-	// }
+	writeEtcFile("parsers.conf", filepath.Join("/etc", "parsers.conf"))
+
+	var str strings.Builder
+	str.WriteString("[SERVICE]\n")
+	str.WriteString("    Flush 10\n")
+	str.WriteString("    Daemon off\n")
+	str.WriteString("    Log_Level warn\n")
+	str.WriteString("    Parsers_File  /etc/parsers.conf\n")
+
+	for _, l := range v.vcfg.Logging {
+
+		switch l.Type {
+		case logSystem:
+			{
+				addSystemLogging(&str, v.ifcs)
+				addLogginOutput(&str, l, "vsystem")
+			}
+		case logKernel:
+			{
+				addKernelLogging(&str)
+				addLogginOutput(&str, l, "vkernel")
+			}
+		case logStdout:
+			{
+				addStdoutLogging(&str)
+				addLogginOutput(&str, l, "vstdout")
+			}
+		case logProgs:
+			{
+				// TODO programs
+				// addProgLogging(&str, v.programs)
+				addLogginOutput(&str, l, "vprog")
+			}
+		case logAll:
+			{
+				addSystemLogging(&str, v.ifcs)
+				addKernelLogging(&str)
+				addStdoutLogging(&str)
+				// addProgLogging(&str, v.programs)
+				addLogginOutput(&str, l, "*")
+			}
+		}
+
+	}
 	//
 	// str.WriteString("[FILTER]\n")
 	// str.WriteString("    Name record_modifier\n")

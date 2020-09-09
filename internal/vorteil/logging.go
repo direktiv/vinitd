@@ -2,7 +2,6 @@ package vorteil
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,35 +109,37 @@ func addProgLogging(sb *strings.Builder, programs []*program) {
 	mountFs(vlogDir, vlogType, "")
 
 	for _, a := range programs {
-		for _, l := range a.logs.values {
 
-			dir := filepath.Dir(l)
-			logDebug("creating logging dir %v", dir)
-			os.Mkdir(dir, 0700)
-
-			files, err := ioutil.ReadDir(dir)
-			if err != nil {
-				logError("can not read directory for logging: %s", err.Error())
-				continue
-			}
-
-			if len(files) > 0 {
-				logWarn("logging directory not empty, using real directory")
-			} else {
-				logDebug("mounting %s as log dir", dir)
-				mountFs(dir, vlogType, "")
-			}
-
-			os.Chown(dir, userID, userID)
-
-			sb.WriteString(inputString)
-			sb.WriteString("    Name tail\n")
-			sb.WriteString(fmt.Sprintf("    Path %s\n", l))
-			sb.WriteString("    Path_Key filename\n")
-			sb.WriteString("    Skip_Long_Lines On\n")
-			sb.WriteString("    Tag vprog\n")
-
-		}
+		logAlways(">> PROG %v", a)
+		// 	for _, l := range a.logs.values {
+		//
+		// 		dir := filepath.Dir(l)
+		// 		logDebug("creating logging dir %v", dir)
+		// 		os.Mkdir(dir, 0700)
+		//
+		// 		files, err := ioutil.ReadDir(dir)
+		// 		if err != nil {
+		// 			logError("can not read directory for logging: %s", err.Error())
+		// 			continue
+		// 		}
+		//
+		// 		if len(files) > 0 {
+		// 			logWarn("logging directory not empty, using real directory")
+		// 		} else {
+		// 			logDebug("mounting %s as log dir", dir)
+		// 			mountFs(dir, vlogType, "")
+		// 		}
+		//
+		// 		os.Chown(dir, userID, userID)
+		//
+		// 		sb.WriteString(inputString)
+		// 		sb.WriteString("    Name tail\n")
+		// 		sb.WriteString(fmt.Sprintf("    Path %s\n", l))
+		// 		sb.WriteString("    Path_Key filename\n")
+		// 		sb.WriteString("    Skip_Long_Lines On\n")
+		// 		sb.WriteString("    Tag vprog\n")
+		//
+		// 	}
 	}
 }
 

@@ -105,51 +105,53 @@ type ProgramConfField struct {
 	Ptype uint16
 }
 
-func parseBootstrap(off int, length uint16, buf []byte) *bootstrapInstruction {
+// func parseBootstrap(off int, length uint16, buf []byte) *bootstrapInstruction {
+//
+// 	return nil
 
-	var b = &bootstrapInstruction{
-		btype: bFieldType(binary.LittleEndian.Uint16(buf[off:])),
-	}
+// var b = &bootstrapInstruction{
+// 	btype: bFieldType(binary.LittleEndian.Uint16(buf[off:])),
+// }
+//
+// to := off + int(unsafe.Sizeof(length)) // it is uint16 further down after type
+//
+// switch b.btype {
+// // case BOOTSTRAP_SLEEP:
+// // 	{
+// // 		b.time = binary.LittleEndian.Uint32(buf[to:])
+// // 		break
+// // 	}
+// default:
+// 	{
+// 		s := to
+// 		for {
+// 			b.args = append(b.args, terminatedNullString(buf[to:]))
+// 			to += len(terminatedNullString(buf[to:])) + 1
+// 			if to-s >= int(length-6) { // 6 is offset type and len
+// 				break
+// 			}
+// 		}
+// 	}
+// }
+//
+// return b
 
-	to := off + int(unsafe.Sizeof(length)) // it is uint16 further down after type
+// }
 
-	switch b.btype {
-	case BOOTSTRAP_SLEEP:
-		{
-			b.time = binary.LittleEndian.Uint32(buf[to:])
-			break
-		}
-	default:
-		{
-			s := to
-			for {
-				b.args = append(b.args, terminatedNullString(buf[to:]))
-				to += len(terminatedNullString(buf[to:])) + 1
-				if to-s >= int(length-6) { // 6 is offset type and len
-					break
-				}
-			}
-		}
-	}
-
-	return b
-
-}
-
-func fixDefaults(p *program) {
-	if p.stdout == "" {
-		p.stdout = defaultTTY
-	}
-
-	if p.stderr == "" {
-		p.stderr = defaultTTY
-	}
-
-	// Treat empty cwd as "/" because calculatePath Filepath.Join functions break when joining empty cwd with relative path
-	if p.cwd == "" {
-		p.cwd = defaultCWD
-	}
-}
+// func fixDefaults(p *program) {
+// 	// if p.stdout == "" {
+// 	// 	p.stdout = defaultTTY
+// 	// }
+// 	//
+// 	// if p.stderr == "" {
+// 	// 	p.stderr = defaultTTY
+// 	// }
+//
+// 	// Treat empty cwd as "/" because calculatePath Filepath.Join functions break when joining empty cwd with relative path
+// 	// if p.cwd == "" {
+// 	// 	p.cwd = defaultCWD
+// 	// }
+// }
 
 func parseProgram(buf []byte) (int, *program, error) {
 
@@ -182,59 +184,59 @@ func parseProgram(buf []byte) (int, *program, error) {
 			}
 		case PCONF_VARC:
 			{
-				p.env.count = binary.LittleEndian.Uint16(buf[bo:])
+				// p.env.count = binary.LittleEndian.Uint16(buf[bo:])
 			}
 		case PCONF_VAR:
 			{
-				p.env.values = append(p.env.values, terminatedNullString(buf[bo:]))
+				// p.env.values = append(p.env.values, terminatedNullString(buf[bo:]))
 			}
 		case PCONF_ARGC:
 			{
-				p.args.count = binary.LittleEndian.Uint16(buf[bo:])
+				// p.args.count = binary.LittleEndian.Uint16(buf[bo:])
 			}
 		case PCONF_ARG:
 			{
-				p.args.values = append(p.args.values, terminatedNullString(buf[bo:]))
+				// p.args.values = append(p.args.values, terminatedNullString(buf[bo:]))
 			}
 		case PCONF_STDOUT:
 			{
-				p.stdout = terminatedNullString(buf[bo:])
+				// p.stdout = terminatedNullString(buf[bo:])
 			}
 		case PCONF_STDERR:
 			{
-				p.stderr = terminatedNullString(buf[bo:])
+				// p.stderr = terminatedNullString(buf[bo:])
 			}
 		case PCONF_BOOTSTRAPC:
 			{
-				p.bootstrapc = binary.LittleEndian.Uint16(buf[bo:])
+				// p.bootstrapc = binary.LittleEndian.Uint16(buf[bo:])
 			}
 		case PCONF_BOOTSTRAP:
 			{
-				p.bootstraps = append(p.bootstraps, parseBootstrap(bo, pf.Len, buf))
+				// p.bootstraps = append(p.bootstraps, parseBootstrap(bo, pf.Len, buf))
 			}
 		case PCONF_LOGFILEC:
 			{
-				p.logs.count = binary.LittleEndian.Uint16(buf[bo:])
+				// p.logs.count = binary.LittleEndian.Uint16(buf[bo:])
 			}
 		case PCONF_LOGFILE:
 			{
-				p.logs.values = append(p.logs.values, terminatedNullString(buf[bo:]))
+				// p.logs.values = append(p.logs.values, terminatedNullString(buf[bo:]))
 			}
 		case PCONF_CWD:
 			{
-				p.cwd = terminatedNullString(buf[bo:])
+				// p.cwd = terminatedNullString(buf[bo:])
 			}
 		case PCONF_PRIVILEGE:
 			{
-				p.privilege = buf[bo]
+				// p.privilege = buf[bo]
 			}
 		case PCONF_STRACE:
 			{
-				p.strace = buf[bo]
-				// Change permissions for strace binary, so it can run as non-root
-				if p.strace == 0x1 && (os.Chmod("/vorteil/strace", 0755) != nil) {
-					return 0, nil, fmt.Errorf("can not change strace file permission")
-				}
+				// p.strace = buf[bo]
+				// // Change permissions for strace binary, so it can run as non-root
+				// if p.strace == 0x1 && (os.Chmod("/vorteil/strace", 0755) != nil) {
+				// 	return 0, nil, fmt.Errorf("can not change strace file permission")
+				// }
 			}
 		default:
 			return 0, nil, fmt.Errorf("unknown field in program config")
@@ -249,7 +251,7 @@ func parseProgram(buf []byte) (int, *program, error) {
 
 	}
 
-	fixDefaults(p)
+	// fixDefaults(p)
 
 	return int(totalLen), p, nil
 }
@@ -432,6 +434,9 @@ func (v *Vinitd) readVCFG(disk string) error {
 	}
 
 	v.vcfg = vcfg
+
+	// we need to set the user here
+	v.user = vcfg.System.User
 
 	return nil
 }

@@ -428,7 +428,6 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 	v.dns = append(v.dns, offer.DNS()...)
 
 	// TODO: ntp, at the moment we only use provided ntp servers
-	// v.ntp = append(v.ntp, offer.NTPServers()...)
 
 	go func(name string, client *client4.Client, offer *dhcpv4.DHCPv4) {
 

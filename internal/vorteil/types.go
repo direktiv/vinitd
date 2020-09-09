@@ -17,17 +17,26 @@ const (
 	STATUS_SETUP    status = iota
 	STATUS_RUN      status = iota
 	STATUS_POWEROFF status = iota
+	STATUS_ERROR    status = iota
 )
 
 const (
-	BOOTSTRAP_NULL                  bFieldType = iota
-	BOOTSTRAP_SLEEP                            = iota
-	BOOTSTRAP_FIND_AND_REPLACE                 = iota
-	BOOTSTRAP_DOWNLOAD                         = iota
-	BOOTSTRAP_DEFINE_IF_NOT_DEFINED            = iota
-	BOOTSTRAP_WAIT_PORT                        = iota
-	BOOTSTRAP_WAIT_FILE                        = iota
+	bootstrapSleep    = "SLEEP"
+	bootstrapFandR    = "FIND_AND_REPLACE"
+	bootstrapDefine   = "DEFINE_IF_NOT_DEFINED"
+	bootstrapWaitFile = "WAIT_FILE"
+	bootstrapWaitPort = "WAIT_PORT"
 )
+
+// const (
+// 	BOOTSTRAP_NULL                  bFieldType = iota
+// 	BOOTSTRAP_SLEEP                            = iota
+// 	BOOTSTRAP_FIND_AND_REPLACE                 = iota
+// 	BOOTSTRAP_DOWNLOAD                         = iota
+// 	BOOTSTRAP_DEFINE_IF_NOT_DEFINED            = iota
+// 	BOOTSTRAP_WAIT_PORT                        = iota
+// 	BOOTSTRAP_WAIT_FILE                        = iota
+// )
 
 // const (
 // 	LOG_SYSTEM   logType = 1
@@ -135,14 +144,14 @@ type logEntry struct {
 }
 
 // config space structs
-type bootstrapInstruction struct {
-	btype bFieldType
-	time  uint32
-	args  []string
-}
+// type bootstrapInstruction struct {
+// 	btype bFieldType
+// 	time  uint32
+// 	args  []string
+// }
 
 type programConf struct {
-	count  uint16
+	// count  uint16
 	values []string
 }
 
@@ -150,25 +159,26 @@ type program struct {
 	path     string
 	vcfgProg vcfg.Program
 
-	env  programConf
-	args programConf
-	// old
-
-	vinitd *Vinitd
+	env  []string
+	args []string
+	logs []string
 
 	status status
 
-	fpath          string
-	cwd            string
-	stdout, stderr string
-	privilege      byte // 0 = root, 1 = superuser, 2 = user
-	strace         byte
+	// old
+	vinitd *Vinitd
+
+	// fpath string
+	// cwd   string
+	// stdout, stderr string
+	// privilege      byte // 0 = root, 1 = superuser, 2 = user
+	// strace byte
 
 	// env        programConf
 	// args       programConf
-	logs       programConf
-	bootstrapc uint16
-	bootstraps []*bootstrapInstruction
+	// logs       programConf
+	// bootstrapc uint16
+	// bootstraps []*bootstrapInstruction
 }
 
 // vcfg

@@ -154,13 +154,13 @@ func (v *Vinitd) Setup() error {
 	printVersion()
 
 	// generate hostname before running setup steps in parallel
-	logDebug("set hostname to %s", v.vcfg.System.Hostname)
-	hn, err := setHostname(v.vcfg.System.Hostname)
+	hn, err := setHostname(v.vcfg.SaltedHostname())
 	if err != nil {
 		logWarn("could not set hostname: %s", err.Error())
 	} else {
 		v.hostname = hn
 	}
+	logDebug("set hostname to %s", hn)
 
 	errors := make(chan error)
 	wgDone := make(chan bool)
@@ -207,6 +207,10 @@ func (v *Vinitd) Setup() error {
 	case err := <-errors:
 		close(errors)
 		SystemPanic("sytem setup failed: %s", err.Error())
+	}
+
+	for _, p := range v.vcfg.Programs {
+		v.prepProgram(p)
 	}
 
 	logDebug("system setup successful")

@@ -2,7 +2,9 @@ package vorteil
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"unsafe"
@@ -110,36 +112,35 @@ func addProgLogging(sb *strings.Builder, programs []*program) {
 
 	for _, a := range programs {
 
-		logAlways(">> PROG %v", a)
-		// 	for _, l := range a.logs.values {
-		//
-		// 		dir := filepath.Dir(l)
-		// 		logDebug("creating logging dir %v", dir)
-		// 		os.Mkdir(dir, 0700)
-		//
-		// 		files, err := ioutil.ReadDir(dir)
-		// 		if err != nil {
-		// 			logError("can not read directory for logging: %s", err.Error())
-		// 			continue
-		// 		}
-		//
-		// 		if len(files) > 0 {
-		// 			logWarn("logging directory not empty, using real directory")
-		// 		} else {
-		// 			logDebug("mounting %s as log dir", dir)
-		// 			mountFs(dir, vlogType, "")
-		// 		}
-		//
-		// 		os.Chown(dir, userID, userID)
-		//
-		// 		sb.WriteString(inputString)
-		// 		sb.WriteString("    Name tail\n")
-		// 		sb.WriteString(fmt.Sprintf("    Path %s\n", l))
-		// 		sb.WriteString("    Path_Key filename\n")
-		// 		sb.WriteString("    Skip_Long_Lines On\n")
-		// 		sb.WriteString("    Tag vprog\n")
-		//
-		// 	}
+		for _, l := range a.vcfgProg.LogFiles {
+
+			dir := filepath.Dir(l)
+			logDebug("creating logging dir %v", dir)
+			os.Mkdir(dir, 0700)
+
+			files, err := ioutil.ReadDir(dir)
+			if err != nil {
+				logError("can not read directory for logging: %s", err.Error())
+				continue
+			}
+
+			if len(files) > 0 {
+				logWarn("logging directory not empty, using real directory")
+			} else {
+				logDebug("mounting %s as log dir", dir)
+				mountFs(dir, vlogType, "")
+			}
+
+			os.Chown(dir, userID, userID)
+
+			sb.WriteString(inputString)
+			sb.WriteString("    Name tail\n")
+			sb.WriteString(fmt.Sprintf("    Path %s\n", l))
+			sb.WriteString("    Path_Key filename\n")
+			sb.WriteString("    Skip_Long_Lines On\n")
+			sb.WriteString("    Tag vprog\n")
+
+		}
 	}
 }
 
@@ -151,10 +152,12 @@ func (v *Vinitd) startLogging() {
 	str.WriteString("[SERVICE]\n")
 	str.WriteString("    Flush 10\n")
 	str.WriteString("    Daemon off\n")
-	str.WriteString("    Log_Level warn\n")
+	str.WriteString("    Log_Level error\n")
 	str.WriteString("    Parsers_File  /etc/parsers.conf\n")
 
 	for _, l := range v.vcfg.Logging {
+
+		logDebug("logging type: %s", l.Type)
 
 		switch l.Type {
 		case logSystem:
@@ -174,8 +177,7 @@ func (v *Vinitd) startLogging() {
 			}
 		case logProgs:
 			{
-				// TODO programs
-				// addProgLogging(&str, v.programs)
+				addProgLogging(&str, v.programs)
 				addLogginOutput(&str, l, "vprog")
 			}
 		case logAll:
@@ -183,46 +185,48 @@ func (v *Vinitd) startLogging() {
 				addSystemLogging(&str, v.ifcs)
 				addKernelLogging(&str)
 				addStdoutLogging(&str)
-				// addProgLogging(&str, v.programs)
+				addProgLogging(&str, v.programs)
 				addLogginOutput(&str, l, "*")
 			}
 		}
 
 	}
-	//
-	// str.WriteString("[FILTER]\n")
-	// str.WriteString("    Name record_modifier\n")
-	// str.WriteString("    Match *\n")
-	// str.WriteString("    Record hostname ${HOSTNAME}\n")
-	//
-	// err := ioutil.WriteFile("/etc/fb.cfg", []byte(str.String()), 0644)
-	// if err != nil {
-	// 	logAlways("can not create fluent-bit config file: %s", err.Error())
-	// 	return
-	// }
-	//
-	// cmd := exec.Command("/vorteil/fluent-bit", fmt.Sprintf("--config=/etc/fb.cfg"), fmt.Sprintf("--plugin=/vorteil/flb-in_vdisk.so"))
-	//
-	// stderr, err := os.OpenFile("/dev/null", os.O_WRONLY|os.O_APPEND, 0)
-	// if err != nil {
-	// 	logError("can not create fluentbit stderr: %s", err.Error())
-	// 	return
-	// }
-	//
-	// stdout, err := os.OpenFile("/dev/null", os.O_WRONLY|os.O_APPEND, 0)
-	// if err != nil {
-	// 	logError("can not cr	eate fluentbit stdout: %s", err.Error())
-	// 	return
-	// }
-	//
-	// cmd.Stderr = stderr
-	// cmd.Stdout = stdout
-	//
-	// cmd.Env = []string{fmt.Sprintf("HOSTNAME=%s", v.hostname)}
-	//
-	// err = cmd.Start()
-	// if err != nil {
-	// 	logAlways("%s", err.Error())
-	// }
+
+	str.WriteString("[FILTER]\n")
+	str.WriteString("    Name record_modifier\n")
+	str.WriteString("    Match *\n")
+	str.WriteString("    Record hostname ${HOSTNAME}\n")
+
+	err := ioutil.WriteFile("/etc/fb.cfg", []byte(str.String()), 0644)
+	if err != nil {
+		logAlways("can not create fluent-bit config file: %s", err.Error())
+		return
+	}
+
+	logDebug("logging conf: %s", str.String())
+
+	cmd := exec.Command("/vorteil/fluent-bit", fmt.Sprintf("--config=/etc/fb.cfg"), "--quiet", fmt.Sprintf("--plugin=/vorteil/flb-in_vdisk.so"))
+
+	stderr, err := os.OpenFile("/dev/vtty", os.O_WRONLY|os.O_APPEND, 0)
+	if err != nil {
+		logError("can not create fluentbit stderr: %s", err.Error())
+		return
+	}
+
+	stdout, err := os.OpenFile("/dev/vtty", os.O_WRONLY|os.O_APPEND, 0)
+	if err != nil {
+		logError("can not create fluentbit stdout: %s", err.Error())
+		return
+	}
+
+	cmd.Stderr = stderr
+	cmd.Stdout = stdout
+
+	cmd.Env = []string{fmt.Sprintf("HOSTNAME=%s", v.hostname)}
+
+	err = cmd.Start()
+	if err != nil {
+		logAlways("%s", err.Error())
+	}
 
 }

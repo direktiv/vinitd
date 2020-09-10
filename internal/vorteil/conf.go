@@ -49,6 +49,8 @@ const (
 	getRequest      = "GET"
 	azureWireServer = "168.63.129.16"          // NOSONAR known cloud
 	metadataURL     = "http://169.254.169.254" // NOSONAR known cloud
+
+	minFds = 1024
 )
 
 type cloudReq struct {
@@ -817,6 +819,12 @@ func systemConfig(sysctls map[string]string, hostname string, maxFds int) error 
 	}
 
 	rlimit(unix.RLIMIT_NPROC, defaultNrProc)
+	logDebug("setting max procs to %d", defaultNrProc)
+
+	// make sure fds are at least 1024
+	maxFds = max(minFds, maxFds)
+	logDebug("setting max-fds to %d", maxFds)
+
 	rlimit(unix.RLIMIT_NOFILE, uint64(maxFds*2))
 
 	type sysVal struct {

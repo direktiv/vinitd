@@ -506,7 +506,7 @@ func startLink(name string) (netlink.Link, error) {
 
 func handleNetworkLink(interf *ifc, ifcg vcfg.NetworkInterface, v *Vinitd, errCh chan error, wg *sync.WaitGroup) {
 
-	if ifcg.IP != "dhcp" {
+	if ifcg.IP != "dhcp" && ifcg.IP != "" {
 
 		go func() {
 			// static ip

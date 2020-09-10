@@ -180,7 +180,7 @@ func (v *Vinitd) Setup() error {
 	go func() {
 		err = systemConfig(v.vcfg.Sysctl, v.hostname, int(v.vcfg.System.MaxFDs))
 		if err != nil {
-			logError("can not setup shared memory: %s", err.Error())
+			logError("can not setup basic config: %s", err.Error())
 		}
 		wg.Done()
 	}()

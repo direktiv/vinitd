@@ -90,6 +90,19 @@ func fixDefaults(p *vcfg.Program) {
 
 }
 
+func reap(cmd *exec.Cmd) {
+
+	logDebug("waiting for process %d", cmd.Process.Pid)
+	err := cmd.Wait()
+	if err != nil {
+		logError("error while waiting: %s", err.Error())
+		return
+	}
+
+	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
+
+}
+
 func (p *program) launch(systemUser string) error {
 
 	fixDefaults(&p.vcfgProg)
@@ -175,6 +188,10 @@ func (p *program) launch(systemUser string) error {
 	}
 
 	p.status = STATUS_RUN
+
+	go reap(cmd)
+
+	logDebug("started %s as pid %d", p.path, cmd.Process.Pid)
 
 	return nil
 }

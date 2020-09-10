@@ -87,7 +87,7 @@ func addStdoutLogging(sb *strings.Builder) {
 
 	mode := 4
 	_, _, ep := unix.Syscall(unix.SYS_IOCTL, file.Fd(),
-		MSG_IOCTL_OUTPUT, uintptr(unsafe.Pointer(&mode)))
+		msgIOCTLOutput, uintptr(unsafe.Pointer(&mode)))
 	if ep != 0 {
 		if err != nil {
 			logError("can not ioctl vtty: %s", err.Error())

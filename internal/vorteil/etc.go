@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	EtcFiles = []string{"group", "localtime", "nsswitch.conf", "passwd", "resolv.conf"}
+	etcFiles = []string{"group", "localtime", "nsswitch.conf", "passwd", "resolv.conf"}
 )
 
 func writeEtcFile(baseName, fullName string) error {
@@ -118,7 +118,7 @@ func addVorteilUserGroup(user string) {
 
 }
 
-/* EtcGenerateFiles creates required files in /etc. The variable
+/* etcGenerateFiles creates required files in /etc. The variable
    'base' is basically only for testing and should be '/etc' during runtime */
 func etcGenerateFiles(base, hostname, user string) error {
 
@@ -130,7 +130,7 @@ func etcGenerateFiles(base, hostname, user string) error {
 		os.MkdirAll(base, 0755)
 	}
 
-	for _, f := range EtcFiles {
+	for _, f := range etcFiles {
 		fullName := filepath.Join(base, f)
 		if _, err := os.Stat(fullName); os.IsNotExist(err) {
 			logDebug("creating file %s", f)

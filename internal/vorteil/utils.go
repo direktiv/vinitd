@@ -38,12 +38,6 @@ func max(x, y int) int {
 	return x
 }
 
-// func networkInt2IP(n uint32) net.IP {
-// 	ip := make(net.IP, 4)
-// 	binary.LittleEndian.PutUint32(ip, n)
-// 	return ip
-// }
-//
 func ip2networkInt(ip net.IP) uint32 {
 	if len(ip) == 16 {
 		return binary.LittleEndian.Uint32(ip[12:16])

@@ -252,7 +252,7 @@ func (v *Vinitd) PostSetup() error {
 		bios, err := ioutil.ReadFile("/sys/devices/virtual/dmi/id/bios_vendor")
 		if err != nil {
 			logWarn("can not read bios vendor")
-			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = HV_UNKNOWN, CP_UNKNOWN
+			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hvUnknown, cpUnknown
 			wg.Done()
 			return
 		}
@@ -295,7 +295,7 @@ func (v *Vinitd) PostSetup() error {
 	}
 
 	logDebug("post setup finished successfully")
-	initStatus = STATUS_RUN
+	initStatus = statusRun
 
 	return nil
 }

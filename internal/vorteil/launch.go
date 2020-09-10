@@ -183,11 +183,11 @@ func (p *program) launch(systemUser string) error {
 
 	err = cmd.Start()
 	if err != nil {
-		p.status = STATUS_ERROR
+		p.status = statusError
 		return err
 	}
 
-	p.status = STATUS_RUN
+	p.status = statusRun
 
 	go waitForApp(cmd)
 
@@ -460,7 +460,7 @@ func (v *Vinitd) prepProgram(p vcfg.Program) error {
 	// we can add the program to the list now
 	np := &program{
 		vcfgProg: p,
-		status:   STATUS_SETUP,
+		status:   statusSetup,
 		vinitd:   v,
 	}
 
@@ -471,14 +471,6 @@ func (v *Vinitd) prepProgram(p vcfg.Program) error {
 
 func (v *Vinitd) launchProgram(np *program) error {
 
-	// // we can add the program to the list now
-	// np := &program{
-	// 	vcfgProg: p,
-	// 	status:   STATUS_SETUP,
-	// 	vinitd:   v,
-	// }
-	//
-	// v.programs = append(v.programs, np)
 	p := np.vcfgProg
 
 	// get envs and substitue with cloud args

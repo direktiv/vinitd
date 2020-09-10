@@ -28,9 +28,9 @@ import (
 type networkType int
 
 const (
-	DEVTYPE_UNKOWN    networkType = iota
-	DEVTYPE_NET                   = iota
-	DEVTYPE_LOCALHOST             = iota
+	devtypeUnknown   networkType = iota
+	devtypeNet                   = iota
+	devtypeLocalhost             = iota
 )
 
 const (
@@ -41,23 +41,23 @@ const (
 	dhcpDefaultRenew          = 360
 	azureEndpointServerOption = 245
 
-	ETHTOOL_SGSO       = 0x00000024
-	ETHTOOL_SUFO       = 0x00000022
-	ETHTOOL_STSO       = 0x0000001f
-	ETHTOOL_SRXCSUM    = 0x00000015
-	ETHTOOL_STXCSUM    = 0x00000017
-	ETHTOOL_SSG        = 0x00000019
-	ETHTOOL_GCHANNELS  = 0x0000003c
-	ETHTOOL_SCHANNELS  = 0x0000003d
-	ETHTOOL_GRINGPARAM = 0x00000010
-	ETHTOOL_SRINGPARAM = 0x00000011
-	SIOCETHTOOL        = 0x8946
-	IFNAMSIZ           = 16
+	ethtoolSGSO       = 0x00000024
+	ethtoolSUFO       = 0x00000022
+	ethtoolSTSO       = 0x0000001f
+	ethtoolSRXCSUM    = 0x00000015
+	ethtoolSTXCSUM    = 0x00000017
+	ethtoolSSG        = 0x00000019
+	ethtoolGCHANNELS  = 0x0000003c
+	ethtoolSCHANNELS  = 0x0000003d
+	ethtoolGRINGPARAM = 0x00000010
+	ethtoolSRINGPARAM = 0x00000011
+	siocETHTOOL       = 0x8946
+	ifNameSz          = 16
 )
 
 var (
-	tsoAttrs = []int{ETHTOOL_SSG, ETHTOOL_SUFO, ETHTOOL_STSO,
-		ETHTOOL_SGSO, ETHTOOL_SRXCSUM, ETHTOOL_STXCSUM}
+	tsoAttrs = []int{ethtoolSSG, ethtoolSUFO, ethtoolSTSO,
+		ethtoolSGSO, ethtoolSRXCSUM, ethtoolSTXCSUM}
 	HOSTNAME_SALT = "$SALT" // replace with 8 random chars
 )
 
@@ -70,8 +70,8 @@ var (
 )
 
 type ifreq struct {
-	ifr_name [IFNAMSIZ]byte
-	ifr_data uintptr
+	ifrName [ifNameSz]byte
+	ifrData uintptr
 }
 
 type ethtoolValue struct {
@@ -92,49 +92,49 @@ type channels struct {
 }
 
 type ringparam struct {
-	cmd                  uint32
-	rx_max_pending       uint32
-	rx_mini_max_pending  uint32
-	rx_jumbo_max_pending uint32
-	tx_max_pending       uint32
-	rx_pending           uint32
-	rx_mini_pending      uint32
-	rx_jumbo_pending     uint32
-	tx_pending           uint32
+	cmd               uint32
+	rxMaxPending      uint32
+	rxMiniMaxPending  uint32
+	rxJumboMaxPending uint32
+	txMaxPending      uint32
+	rxPending         uint32
+	rxMiniPending     uint32
+	rxJumboPending    uint32
+	txPending         uint32
 }
 
 func networkDeviceType(name string) networkType {
 	dat, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/type", name))
 	if err != nil {
-		return DEVTYPE_UNKOWN
+		return devtypeUnknown
 	}
 
 	s := strings.TrimSpace(string(dat))
 	switch s {
 	case deviceNet:
-		return DEVTYPE_NET
+		return devtypeNet
 	case deviceLocal:
-		return DEVTYPE_LOCALHOST
+		return devtypeLocalhost
 	default:
-		return DEVTYPE_UNKOWN
+		return devtypeUnknown
 	}
 
 }
 
 func ioctl(ifc string, data uintptr) error {
 
-	var name [IFNAMSIZ]byte
+	var name [ifNameSz]byte
 	copy(name[:], []byte(ifc))
 
 	ifr := ifreq{
-		ifr_name: name,
-		ifr_data: data,
+		ifrName: name,
+		ifrData: data,
 	}
 
 	fd, _ := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
 	defer unix.Close(fd)
 
-	_, _, ep := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), SIOCETHTOOL,
+	_, _, ep := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), siocETHTOOL,
 		uintptr(unsafe.Pointer(&ifr)))
 	if ep != 0 {
 		return ep
@@ -147,14 +147,14 @@ func checkRingParams(ringparam ringparam) bool {
 
 	needsUpdate := false
 
-	if ringparam.rx_max_pending > ringparam.rx_pending {
+	if ringparam.rxMaxPending > ringparam.rxMaxPending {
 		needsUpdate = true
-		ringparam.rx_pending = ringparam.rx_max_pending
+		ringparam.rxPending = ringparam.rxMaxPending
 	}
 
-	if ringparam.tx_max_pending > ringparam.tx_pending {
+	if ringparam.txMaxPending > ringparam.txPending {
 		needsUpdate = true
-		ringparam.tx_pending = ringparam.tx_max_pending
+		ringparam.txPending = ringparam.txMaxPending
 	}
 
 	return needsUpdate
@@ -192,7 +192,7 @@ func configQueues(ifcs map[string]*ifc) {
 
 		// needsUpdate := false
 		channels := channels{
-			cmd: ETHTOOL_GCHANNELS,
+			cmd: ethtoolGCHANNELS,
 		}
 
 		if err := ioctl(ifc.name, uintptr(unsafe.Pointer(&channels))); err != nil {
@@ -202,13 +202,13 @@ func configQueues(ifcs map[string]*ifc) {
 		// if update required we send one. errors can not be handled
 		if checkChannels(channels) {
 			logDebug("updating network queues")
-			channels.cmd = ETHTOOL_SCHANNELS
+			channels.cmd = ethtoolSCHANNELS
 			ioctl(ifc.name, uintptr(unsafe.Pointer(&channels)))
 		}
 
 	ringconfig:
 		ringparam := ringparam{
-			cmd: ETHTOOL_GRINGPARAM,
+			cmd: ethtoolGRINGPARAM,
 		}
 
 		if err := ioctl(ifc.name, uintptr(unsafe.Pointer(&ringparam))); err != nil {
@@ -217,7 +217,7 @@ func configQueues(ifcs map[string]*ifc) {
 
 		if checkRingParams(ringparam) {
 			logDebug("updating network ringparams")
-			ringparam.cmd = ETHTOOL_SRINGPARAM
+			ringparam.cmd = ethtoolSRINGPARAM
 			ioctl(ifc.name, uintptr(unsafe.Pointer(&ringparam)))
 		}
 
@@ -395,9 +395,9 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 	dhcpServerIP := dhcpv4.GetIP(dhcpv4.OptionServerIdentifier, offer.Options)
 
 	if len(offer.Options.Get(dhcpv4.GenericOptionCode(azureEndpointServerOption))) > 0 {
-		v.hypervisorInfo.cloud = CP_AZURE
+		v.hypervisorInfo.cloud = cpAzure
 	} else {
-		v.hypervisorInfo.cloud = CP_NONE
+		v.hypervisorInfo.cloud = cpNone
 	}
 
 	configInterface(ifc, offer.YourIPAddr, mask, router)
@@ -469,7 +469,7 @@ func setTSOValues(name string, val byte) {
 
 	logDebug("setting tso to %d", val)
 
-	var nameIn [IFNAMSIZ]byte
+	var nameIn [ifNameSz]byte
 	copy(nameIn[:], []byte(name))
 
 	for _, attr := range tsoAttrs {
@@ -591,7 +591,7 @@ func (v *Vinitd) NetworkSetup() error {
 		deviceType := networkDeviceType(i.Name)
 
 		// only handle devices
-		if deviceType < DEVTYPE_NET {
+		if deviceType < devtypeNet {
 			continue
 		}
 
@@ -603,7 +603,7 @@ func (v *Vinitd) NetworkSetup() error {
 			return err
 		}
 
-		if deviceType == DEVTYPE_LOCALHOST {
+		if deviceType == devtypeLocalhost {
 			ipnet := &net.IPNet{
 				IP:   net.IPv4(127, 0, 0, 1),
 				Mask: net.IPv4Mask(255, 0, 0, 0),

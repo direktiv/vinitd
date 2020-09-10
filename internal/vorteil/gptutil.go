@@ -16,6 +16,8 @@ var (
 	UnknownFS = Format("unknown")
 )
 
+var zeroes = &zr{}
+
 var (
 	ext2Signature = []byte{0x53, 0xEF}
 	xfsSignature  = []byte{0x58, 0x46, 0x53, 0x42}
@@ -74,5 +76,3 @@ func (rdr *zr) Read(p []byte) (n int, err error) {
 
 	return len(p), nil
 }
-
-var zeroes = &zr{}

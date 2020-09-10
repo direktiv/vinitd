@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-reap"
 	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
@@ -90,16 +91,15 @@ func fixDefaults(p *vcfg.Program) {
 
 }
 
-func reap(cmd *exec.Cmd) {
+func waitForApp(cmd *exec.Cmd) {
 
-	logDebug("waiting for process %d", cmd.Process.Pid)
+	logAlways("waiting for process %d", cmd.Process.Pid)
 	err := cmd.Wait()
 	if err != nil {
 		logError("error while waiting: %s", err.Error())
 		return
 	}
-
-	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
+	logAlways("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 
 }
 
@@ -189,7 +189,7 @@ func (p *program) launch(systemUser string) error {
 
 	p.status = STATUS_RUN
 
-	go reap(cmd)
+	go waitForApp(cmd)
 
 	logDebug("started %s as pid %d", p.path, cmd.Process.Pid)
 
@@ -526,6 +526,24 @@ func (v *Vinitd) launchProgram(np *program) error {
 	return nil
 }
 
+func reapProcs() {
+
+	pids := make(reap.PidCh, 1)
+	errors := make(reap.ErrorCh, 1)
+
+	go reap.ReapChildren(pids, errors, nil, nil)
+
+	for {
+		select {
+		case pid := <-pids:
+			logAlways("process %d finished", pid)
+		case err := <-errors:
+			logError("error wait pid %s", err.Error())
+		}
+	}
+
+}
+
 func (v *Vinitd) Launch() error {
 
 	var wg sync.WaitGroup
@@ -536,9 +554,7 @@ func (v *Vinitd) Launch() error {
 	errors := make(chan error)
 	wgDone := make(chan bool)
 
-	// for _, p := range v.vcfg.Programs {
-	// 	v.prepProgram(p)
-	// }
+	go reapProcs()
 
 	go listenToProcesses(v.programs)
 

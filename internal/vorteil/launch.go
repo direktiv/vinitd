@@ -93,13 +93,13 @@ func fixDefaults(p *vcfg.Program) {
 
 func waitForApp(cmd *exec.Cmd) {
 
-	logAlways("waiting for process %d", cmd.Process.Pid)
+	logDebug("waiting for process %d", cmd.Process.Pid)
 	err := cmd.Wait()
 	if err != nil {
 		logError("error while waiting: %s", err.Error())
 		return
 	}
-	logAlways("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
+	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 
 }
 
@@ -536,7 +536,7 @@ func reapProcs() {
 	for {
 		select {
 		case pid := <-pids:
-			logAlways("process %d finished", pid)
+			logDebug("process %d finished", pid)
 		case err := <-errors:
 			logError("error wait pid %s", err.Error())
 		}

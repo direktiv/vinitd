@@ -131,9 +131,12 @@ func (p *program) launch(systemUser string) error {
 	case vcfg.SuperuserPrivilege: // superuser privilege
 		user = fmt.Sprintf("%s (superuser)", systemUser)
 		rid = userID
-	default: // user privilege
+	case vcfg.UserPrivilege:
 		user = systemUser
 		rid = userID
+	default:
+		rid = rootID
+		user = "root"
 	}
 
 	// either root or uid 1000

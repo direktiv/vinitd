@@ -1,7 +1,6 @@
 package vorteil
 
 import (
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,18 +20,18 @@ func TestUptime(t *testing.T) {
 	assert.NotEqual(t, up, 0.0)
 }
 
-func TestUniqueIP(t *testing.T) {
-
-	ip1 := []net.IP{net.ParseIP("192.168.1.1"),
-		net.ParseIP("192.168.1.2"), net.ParseIP("192.168.1.3")}
-
-	assert.Equal(t, len(ip1), len(uniqueIPs(ip1)))
-
-	ip1 = append(ip1, net.ParseIP("192.168.1.1"))
-
-	assert.NotEqual(t, len(ip1), len(uniqueIPs(ip1)))
-
-}
+// func TestUniqueIP(t *testing.T) {
+//
+// 	ip1 := []net.IP{net.ParseIP("192.168.1.1"),
+// 		net.ParseIP("192.168.1.2"), net.ParseIP("192.168.1.3")}
+//
+// 	assert.Equal(t, len(ip1), len(uniqueIPs(ip1)))
+//
+// 	ip1 = append(ip1, net.ParseIP("192.168.1.1"))
+//
+// 	assert.NotEqual(t, len(ip1), len(uniqueIPs(ip1)))
+//
+// }
 
 func TestMin(t *testing.T) {
 	assert.Equal(t, min(1, 2), uint32(1))
@@ -49,13 +48,13 @@ func TestNetworkInt2IP(t *testing.T) {
 
 }
 
-func TestIP2networkInt(t *testing.T) {
-
-	ipInt1 := 16885952
-
-	ip1 := net.ParseIP("192.168.1.1")
-	ipInt2 := ip2networkInt(ip1)
-
-	assert.Equal(t, ipInt1, int(ipInt2))
-
-}
+// func TestIP2networkInt(t *testing.T) {
+//
+// 	ipInt1 := 16885952
+//
+// 	ip1 := net.ParseIP("192.168.1.1")
+// 	ipInt2 := ip2networkInt(ip1)
+//
+// 	assert.Equal(t, ipInt1, int(ipInt2))
+//
+// }

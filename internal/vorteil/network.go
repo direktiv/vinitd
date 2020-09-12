@@ -58,7 +58,7 @@ const (
 var (
 	tsoAttrs = []int{ethtoolSSG, ethtoolSUFO, ethtoolSTSO,
 		ethtoolSGSO, ethtoolSRXCSUM, ethtoolSTXCSUM}
-	HOSTNAME_SALT = "$SALT" // replace with 8 random chars
+	hostnameSalt = "$SALT" // replace with 8 random chars
 )
 
 // TCPDUMP vars
@@ -147,7 +147,7 @@ func checkRingParams(ringparam ringparam) bool {
 
 	needsUpdate := false
 
-	if ringparam.rxMaxPending > ringparam.rxMaxPending {
+	if ringparam.rxMaxPending > ringparam.rxPending {
 		needsUpdate = true
 		ringparam.rxPending = ringparam.rxMaxPending
 	}
@@ -427,7 +427,8 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 	// add DNS
 	v.dns = append(v.dns, offer.DNS()...)
 
-	// TODO: ntp, at the moment we only use provided ntp servers
+	// XXX: ntp, at the moment we only use provided ntp servers
+	// we should read from dhcp as well
 
 	go func(name string, client *client4.Client, offer *dhcpv4.DHCPv4) {
 
@@ -656,22 +657,7 @@ func (v *Vinitd) NetworkSetup() error {
 
 	logDebug("network configured")
 
-	// Sort interface keys for printing
-	ifcKeys := make([]string, 0, len(v.ifcs))
-	for k := range v.ifcs {
-		ifcKeys = append(ifcKeys, k)
-	}
-
-	sort.Strings(ifcKeys)
-	for _, iKey := range ifcKeys {
-		logAlways("%s ip\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].addr.IP.String())
-		logAlways("%s mask\t: %s", v.ifcs[iKey].name, net.IP(v.ifcs[iKey].addr.Mask).String())
-		logAlways("%s gateway\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].gw.String())
-	}
-
-	if len(v.ifcs) == 0 {
-		logAlways("ip\t: no network devices available")
-	}
+	sortAndPrint(v.ifcs)
 
 	configRoutes(v.vcfg.Routing)
 
@@ -680,10 +666,29 @@ func (v *Vinitd) NetworkSetup() error {
 	return nil
 }
 
+func sortAndPrint(ifcs map[string]*ifc) {
+	// Sort interface keys for printing
+	ifcKeys := make([]string, 0, len(ifcs))
+	for k := range ifcs {
+		ifcKeys = append(ifcKeys, k)
+	}
+
+	sort.Strings(ifcKeys)
+	for _, iKey := range ifcKeys {
+		logAlways("%s ip\t: %s", ifcs[iKey].name, ifcs[iKey].addr.IP.String())
+		logAlways("%s mask\t: %s", ifcs[iKey].name, net.IP(ifcs[iKey].addr.Mask).String())
+		logAlways("%s gateway\t: %s", ifcs[iKey].name, ifcs[iKey].gw.String())
+	}
+
+	if len(ifcs) == 0 {
+		logAlways("ip\t: no network devices available")
+	}
+}
+
 func setHostname(str string) (string, error) {
 
 	// substitute keys in hostname string
-	if strings.Contains(str, HOSTNAME_SALT) {
+	if strings.Contains(str, hostnameSalt) {
 		var runes = strings.Split("abcdefghijklmnopqrstuvwxyz-0123456789", "")
 
 		// already seeded here
@@ -691,7 +696,7 @@ func setHostname(str string) (string, error) {
 		for i := 0; i < 8; i++ {
 			salt += runes[mrand.Int()%len(runes)]
 		}
-		str = strings.Replace(str, HOSTNAME_SALT, salt, -1)
+		str = strings.Replace(str, hostnameSalt, salt, -1)
 	}
 
 	// convert to lowercase (uppercase letters are not valid hostname characters)
@@ -714,13 +719,10 @@ func validateHostname(hostname string) (string, error) {
 		return "", fmt.Errorf("hostname can not be empty")
 	}
 
-	elemRegex, err := regexp.Compile(`[a-z0-9-]`)
-	if err != nil {
-		return hostname, err
-	}
+	// no need to check for errors here
+	elemRegex, _ := regexp.Compile(`[a-z0-9-]`)
 
 	hostname = strings.TrimPrefix(hostname, "-")
-
 	elements := strings.Split(hostname, ".")
 
 	for k, e := range elements {
@@ -779,20 +781,18 @@ func configRoutes(routes []vcfg.Route) {
 
 		// check if gateway is in that network
 		// if not, we need to create a direct link
+		var errNw error
 		if !nw.Contains(gw) {
-			err := addNetworkRoute4(gw, net.IPv4bcast, nil, r.Interface,
+			errNw = addNetworkRoute4(gw, net.IPv4bcast, nil, r.Interface,
 				unix.RTF_UP|unix.RTF_HOST)
-			if err != nil {
-				logError("can not set route direct link: %v", err)
-				continue
-			}
 		} else {
-			err := addNetworkRoute4(gw, net.IP(nw.Mask), nil, r.Interface,
+			errNw = addNetworkRoute4(gw, net.IP(nw.Mask), nil, r.Interface,
 				unix.RTF_UP|unix.RTF_HOST)
-			if err != nil {
-				logError("can not set route in network: %v", err)
-				continue
-			}
+		}
+
+		if errNw != nil {
+			logError("can not set route direct link: %v", errNw)
+			continue
 		}
 
 		err = addNetworkRoute4(dst, net.IP(nw.Mask), gw, r.Interface,

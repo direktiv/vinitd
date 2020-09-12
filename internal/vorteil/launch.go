@@ -125,16 +125,13 @@ func (p *program) launch(systemUser string) error {
 	)
 
 	switch p.vcfgProg.Privilege {
-	case vcfg.RootPrivilege: // root privilege
-		rid = rootID
-		user = "root"
 	case vcfg.SuperuserPrivilege: // superuser privilege
 		user = fmt.Sprintf("%s (superuser)", systemUser)
 		rid = userID
 	case vcfg.UserPrivilege:
 		user = systemUser
 		rid = userID
-	default:
+	default: // root privilege
 		rid = rootID
 		user = "root"
 	}

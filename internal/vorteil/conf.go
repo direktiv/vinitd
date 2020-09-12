@@ -81,20 +81,13 @@ var (
 )
 
 func bootDisk() (string, error) {
-	f, err := os.Open(bootdev)
+
+	b, err := ioutil.ReadFile(bootdev)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	return string(b), nil
 
-	buf := make([]byte, 128)
-	_, err = f.Read(buf)
-	if err != nil {
-		return "", err
-	}
-
-	// we need to read from the disk into the struct
-	return terminatedNullString(buf), nil
 }
 
 /* readVCFG reads the the configuration for the VM from disk into the

@@ -45,21 +45,6 @@ func ip2networkInt(ip net.IP) uint32 {
 	return binary.LittleEndian.Uint32(ip)
 }
 
-func terminatedNullString(in []byte) string {
-
-	var target []byte
-
-	for _, c := range in {
-		if c == 0 {
-			break
-		}
-		target = append(target, c)
-	}
-
-	return string(target)
-
-}
-
 func uptime() float64 {
 
 	up, err := ioutil.ReadFile(procFile)

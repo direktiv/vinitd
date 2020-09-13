@@ -1,7 +1,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/vorteil/vinitd">
-    <img src="assets/images/vlogo.png" alt="Logo" width="80" height="80">
+    <img src="assets/images/vlogo.png" alt="vinitd">
   </a>
   <h3 align="center">vinitd</h3>
   <h5 align="center">vorteil.io init</h5>

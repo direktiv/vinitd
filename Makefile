@@ -5,7 +5,7 @@ endif
 
 .PHONY: all
 all: prep etc
-	export CGO_LDFLAGS="-static -w -s -Wl,--dynamic-linker=/vorteil/ld-linux-x86-64.so.2 -Wl,-rpath,/vorteil" && \
+	export CGO_LDFLAGS="-static -w -s" && \
 	go build -tags netgo -o build/vinitd cmd/vorteil.go
 
 .PHONY: clean

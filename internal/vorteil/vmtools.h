@@ -1,7 +1,11 @@
+/**
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2020 vorteil.io Pty Ltd
+ */
+ 
 #ifndef _VMTOOLS_H
 #define _VMTOOLS_H
 
-// #include <stdbool.h>
 #include <stdint.h>
 
 int vmtools_start(int cards, char *hostname);

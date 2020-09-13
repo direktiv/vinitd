@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
 
@@ -18,12 +19,18 @@ const (
 	inputString = "[INPUT]\n"
 	vlogDir     = "/vlogs"
 	vlogType    = "vlogfs"
+
+	logSystem = "system"
+	logKernel = "kernel"
+	logStdout = "stdout"
+	logProgs  = "programs"
+	logAll    = "all"
 )
 
-func addLogginOutput(sb *strings.Builder, logEntry *logEntry, match string) {
+func addLogginOutput(sb *strings.Builder, logEntry vcfg.Logging, match string) {
 	sb.WriteString("[OUTPUT]\n")
 
-	for _, l := range logEntry.logStrings {
+	for _, l := range logEntry.Config {
 		s := strings.SplitN(l, "=", 2)
 		if len(s) != 2 {
 			logError("can not add logging output for %s", s)
@@ -80,7 +87,7 @@ func addStdoutLogging(sb *strings.Builder) {
 
 	mode := 4
 	_, _, ep := unix.Syscall(unix.SYS_IOCTL, file.Fd(),
-		MSG_IOCTL_OUTPUT, uintptr(unsafe.Pointer(&mode)))
+		msgIOCTLOutput, uintptr(unsafe.Pointer(&mode)))
 	if ep != 0 {
 		if err != nil {
 			logError("can not ioctl vtty: %s", err.Error())
@@ -104,7 +111,8 @@ func addProgLogging(sb *strings.Builder, programs []*program) {
 	mountFs(vlogDir, vlogType, "")
 
 	for _, a := range programs {
-		for _, l := range a.logs.values {
+
+		for _, l := range a.vcfgProg.LogFiles {
 
 			dir := filepath.Dir(l)
 			logDebug("creating logging dir %v", dir)
@@ -144,33 +152,35 @@ func (v *Vinitd) startLogging() {
 	str.WriteString("[SERVICE]\n")
 	str.WriteString("    Flush 10\n")
 	str.WriteString("    Daemon off\n")
-	str.WriteString("    Log_Level warn\n")
+	str.WriteString("    Log_Level error\n")
 	str.WriteString("    Parsers_File  /etc/parsers.conf\n")
 
-	for _, l := range v.logEntries {
+	for _, l := range v.vcfg.Logging {
 
-		switch l.logType {
-		case LOG_SYSTEM:
+		logDebug("logging type: %s", l.Type)
+
+		switch l.Type {
+		case logSystem:
 			{
 				addSystemLogging(&str, v.ifcs)
 				addLogginOutput(&str, l, "vsystem")
 			}
-		case LOG_KERNEL:
+		case logKernel:
 			{
 				addKernelLogging(&str)
 				addLogginOutput(&str, l, "vkernel")
 			}
-		case LOG_STDOUT:
+		case logStdout:
 			{
 				addStdoutLogging(&str)
 				addLogginOutput(&str, l, "vstdout")
 			}
-		case LOG_PROGRAMS:
+		case logProgs:
 			{
 				addProgLogging(&str, v.programs)
 				addLogginOutput(&str, l, "vprog")
 			}
-		case LOG_ALL:
+		case logAll:
 			{
 				addSystemLogging(&str, v.ifcs)
 				addKernelLogging(&str)
@@ -193,15 +203,17 @@ func (v *Vinitd) startLogging() {
 		return
 	}
 
-	cmd := exec.Command("/vorteil/fluent-bit", fmt.Sprintf("--config=/etc/fb.cfg"), fmt.Sprintf("--plugin=/vorteil/flb-in_vdisk.so"))
+	logDebug("logging conf: %s", str.String())
 
-	stderr, err := os.OpenFile("/dev/null", os.O_WRONLY|os.O_APPEND, 0)
+	cmd := exec.Command("/vorteil/fluent-bit", fmt.Sprintf("--config=/etc/fb.cfg"), "--quiet", fmt.Sprintf("--plugin=/vorteil/flb-in_vdisk.so"))
+
+	stderr, err := os.OpenFile("/dev/vtty", os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
 		logError("can not create fluentbit stderr: %s", err.Error())
 		return
 	}
 
-	stdout, err := os.OpenFile("/dev/null", os.O_WRONLY|os.O_APPEND, 0)
+	stdout, err := os.OpenFile("/dev/vtty", os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
 		logError("can not create fluentbit stdout: %s", err.Error())
 		return

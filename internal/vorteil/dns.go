@@ -1,23 +1,25 @@
 package vorteil
 
 import (
+	"net"
 	"strings"
 
-	dnsproxy "github.com/Asphaltt/dnsproxy-go"
+	"github.com/Asphaltt/dnsproxy-go"
 )
 
 const (
-	defaultDnsAddr = "127.0.0.1:53"
+	defaultDNSAddr = "127.0.0.1:53"
 )
 
 func (v *Vinitd) startDNS(dnsAddr string) error {
 
 	var dns []string
-	for _, d := range v.vcfg.Net.DNS {
-		if d == 0 {
-			break
+
+	for _, d := range v.vcfg.System.DNS {
+		ip := net.ParseIP(d)
+		if ip != nil {
+			v.dns = append(v.dns, ip)
 		}
-		v.dns = append(v.dns, networkInt2IP(d))
 	}
 
 	// remove potential duplicates

@@ -2,39 +2,21 @@ package vorteil
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"syscall"
-	"unsafe"
 
 	"golang.org/x/sys/unix"
-)
 
-type pFieldType int
-
-const (
-	PCONF_NULL       pFieldType = iota
-	PCONF_BINARY                = iota
-	PCONF_VARC                  = iota
-	PCONF_VAR                   = iota
-	PCONF_ARGC                  = iota
-	PCONF_ARG                   = iota
-	PCONF_STDOUT                = iota
-	PCONF_STDERR                = iota
-	PCONF_BOOTSTRAPC            = iota
-	PCONF_BOOTSTRAP             = iota
-	PCONF_LOGFILEC              = iota
-	PCONF_LOGFILE               = iota
-	PCONF_CWD                   = iota
-	PCONF_PRIVILEGE             = iota
-	PCONF_STRACE                = iota
+	"github.com/vorteil/vorteil/pkg/vcfg"
+	"github.com/vorteil/vorteil/pkg/vimg"
 )
 
 const (
@@ -42,19 +24,19 @@ const (
 	defaultNrProc = 10000
 	defaultCWD    = "/"
 
-	getRequest = "GET"
-
-	// gcpMetadataServerUrl = "http://169.254.169.254/computeMetadata/v1/instance" // NOSONAR known cloud
+	getRequest      = "GET"
 	azureWireServer = "168.63.129.16"          // NOSONAR known cloud
 	metadataURL     = "http://169.254.169.254" // NOSONAR known cloud
+
+	minFds = 1024
 )
 
 type cloudReq struct {
 	server string
 
-	interfaceUrl  string
-	customDataUrl string
-	hostnameUrl   string
+	interfaceURL  string
+	customDataURL string
+	hostnameURL   string
 
 	header, query map[string]string
 }
@@ -62,9 +44,9 @@ type cloudReq struct {
 var (
 	azureReq = cloudReq{
 		server:        metadataURL,
-		interfaceUrl:  "%s/metadata/instance/network/interface/%d/ipv4/ipAddress/0/publicIpAddress",
-		customDataUrl: "%s/metadata/instance/compute/customData",
-		hostnameUrl:   "",
+		interfaceURL:  "%s/metadata/instance/network/interface/%d/ipv4/ipAddress/0/publicIpAddress",
+		customDataURL: "%s/metadata/instance/compute/customData",
+		hostnameURL:   "",
 		header: map[string]string{
 			"Metadata": "True",
 			"Host":     "metadata.azure.internal",
@@ -77,9 +59,9 @@ var (
 
 	gcpReq = cloudReq{
 		server:        metadataURL,
-		interfaceUrl:  "%s/computeMetadata/v1/instance/network-interfaces/%d/access-configs/0/external-ip",
-		customDataUrl: "%s/computeMetadata/v1/instance/attributes/vorteil",
-		hostnameUrl:   "%s/computeMetadata/v1/instance/hostname",
+		interfaceURL:  "%s/computeMetadata/v1/instance/network-interfaces/%d/access-configs/0/external-ip",
+		customDataURL: "%s/computeMetadata/v1/instance/attributes/vorteil",
+		hostnameURL:   "%s/computeMetadata/v1/instance/hostname",
 		header: map[string]string{
 			"Host":            "metadata.google.internal",
 			"Metadata-Flavor": "Google",
@@ -88,9 +70,9 @@ var (
 
 	ec2Req = cloudReq{
 		server:        metadataURL,
-		interfaceUrl:  "%s/latest/meta-data/public-ipv4",
-		customDataUrl: "%s/latest/user-data",
-		hostnameUrl:   "%s/latest/meta-data/public-hostname",
+		interfaceURL:  "%s/latest/meta-data/public-ipv4",
+		customDataURL: "%s/latest/user-data",
+		hostnameURL:   "%s/latest/meta-data/public-hostname",
 		header: map[string]string{
 			"Host":     "metadata.ec2.internal",
 			"Metadata": "true",
@@ -98,293 +80,34 @@ var (
 	}
 )
 
-type ProgramConfField struct {
-	Len   uint16
-	Ptype uint16
-}
-
-func parseBootstrap(off int, length uint16, buf []byte) *bootstrapInstruction {
-
-	var b = &bootstrapInstruction{
-		btype: bFieldType(binary.LittleEndian.Uint16(buf[off:])),
-	}
-
-	to := off + int(unsafe.Sizeof(length)) // it is uint16 further down after type
-
-	switch b.btype {
-	case BOOTSTRAP_SLEEP:
-		{
-			b.time = binary.LittleEndian.Uint32(buf[to:])
-			break
-		}
-	default:
-		{
-			s := to
-			for {
-				b.args = append(b.args, terminatedNullString(buf[to:]))
-				to += len(terminatedNullString(buf[to:])) + 1
-				if to-s >= int(length-6) { // 6 is offset type and len
-					break
-				}
-			}
-		}
-	}
-
-	return b
-
-}
-
-func fixDefaults(p *program) {
-	if p.stdout == "" {
-		p.stdout = defaultTTY
-	}
-
-	if p.stderr == "" {
-		p.stderr = defaultTTY
-	}
-
-	// Treat empty cwd as "/" because calculatePath Filepath.Join functions break when joining empty cwd with relative path
-	if p.cwd == "" {
-		p.cwd = defaultCWD
-	}
-}
-
-func parseProgram(buf []byte) (int, *program, error) {
-
-	var in *bytes.Reader
-	var pf ProgramConfField
-	var err error
-
-	totalLen := binary.LittleEndian.Uint32(buf)
-
-	if totalLen == 0 {
-		return 0, nil, nil
-	}
-
-	off := 4 // offset for totalLen
-	p := &program{
-		status: STATUS_SETUP,
-	}
-
-	for {
-		in = bytes.NewReader(buf[off:])
-		err = binary.Read(in, binary.LittleEndian, &pf)
-		if err != nil {
-			return 0, nil, fmt.Errorf("can not read config")
-		}
-		bo := off + int(unsafe.Sizeof(pf))
-		switch pf.Ptype {
-		case PCONF_BINARY:
-			{
-				p.path = terminatedNullString(buf[bo:])
-			}
-		case PCONF_VARC:
-			{
-				p.env.count = binary.LittleEndian.Uint16(buf[bo:])
-			}
-		case PCONF_VAR:
-			{
-				p.env.values = append(p.env.values, terminatedNullString(buf[bo:]))
-			}
-		case PCONF_ARGC:
-			{
-				p.args.count = binary.LittleEndian.Uint16(buf[bo:])
-			}
-		case PCONF_ARG:
-			{
-				p.args.values = append(p.args.values, terminatedNullString(buf[bo:]))
-			}
-		case PCONF_STDOUT:
-			{
-				p.stdout = terminatedNullString(buf[bo:])
-			}
-		case PCONF_STDERR:
-			{
-				p.stderr = terminatedNullString(buf[bo:])
-			}
-		case PCONF_BOOTSTRAPC:
-			{
-				p.bootstrapc = binary.LittleEndian.Uint16(buf[bo:])
-			}
-		case PCONF_BOOTSTRAP:
-			{
-				p.bootstraps = append(p.bootstraps, parseBootstrap(bo, pf.Len, buf))
-			}
-		case PCONF_LOGFILEC:
-			{
-				p.logs.count = binary.LittleEndian.Uint16(buf[bo:])
-			}
-		case PCONF_LOGFILE:
-			{
-				p.logs.values = append(p.logs.values, terminatedNullString(buf[bo:]))
-			}
-		case PCONF_CWD:
-			{
-				p.cwd = terminatedNullString(buf[bo:])
-			}
-		case PCONF_PRIVILEGE:
-			{
-				p.privilege = buf[bo]
-			}
-		case PCONF_STRACE:
-			{
-				p.strace = buf[bo]
-				// Change permissions for strace binary, so it can run as non-root
-				if p.strace == 0x1 && (os.Chmod("/vorteil/strace", 0755) != nil) {
-					return 0, nil, fmt.Errorf("can not change strace file permission")
-				}
-			}
-		default:
-			return 0, nil, fmt.Errorf("unknown field in program config")
-		}
-
-		off += int(pf.Len)
-
-		// -20 is for the MD5 digest and zeroes
-		if off >= int(totalLen-20) {
-			break
-		}
-
-	}
-
-	fixDefaults(p)
-
-	return int(totalLen), p, nil
-}
-
-func (v *Vinitd) loadLoggings(f *os.File) error {
-
-	// load app/system logging config
-	region := v.vcfg.Disk.LoggingConfig
-	regionLen := region.Sectors * sectorSize
-
-	buf := make([]byte, regionLen)
-	_, err := f.ReadAt(buf, int64(region.Lba*sectorSize))
-	if err != nil {
-		return err
-	}
-
-	off := 0
-
-	for {
-
-		l := &logEntry{
-			logType: logType(buf[off]),
-		}
-
-		if l.logType == 0 {
-			break
-		}
-
-		off++ // type
-		off++ // size
-
-		for {
-			s := terminatedNullString(buf[off:])
-			off++ // skip the null terminator
-			if len(s) == 0 {
-				break
-			}
-			l.logStrings = append(l.logStrings, s)
-			off += len(s)
-		}
-
-		v.logEntries = append(v.logEntries, l)
-
-	}
-
-	return nil
-
-}
-
-func (v *Vinitd) loadConfigs(disk string) error {
-
-	region := v.vcfg.Disk.InitdConfig
-	regionLen := region.Sectors * sectorSize
-
-	f, err := os.Open(disk)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	var buf = make([]byte, regionLen)
-	_, err = f.ReadAt(buf, int64(region.Lba*sectorSize))
-	if err != nil {
-		return err
-	}
-	offset := 0
-	for {
-		o, p, err := parseProgram(buf[offset:])
-		if err != nil {
-			return err
-		}
-		if p == nil {
-			break
-		}
-
-		p.vinitd = v
-		v.programs = append(v.programs, p)
-
-		if offset >= int(regionLen) || o == 0 {
-			break
-		}
-		offset += o
-	}
-
-	// load go config
-	region = v.vcfg.Disk.GoConfig
-	regionLen = region.Sectors * sectorSize
-
-	buf = make([]byte, regionLen)
-	_, err = f.ReadAt(buf, int64(region.Lba*sectorSize))
-	if err != nil {
-		return err
-	}
-
-	jsonStr := terminatedNullString(buf)
-
-	gocfg := new(GoCfg)
-	err = json.Unmarshal([]byte(jsonStr), gocfg)
-	if err != nil {
-		logError("could not parse goconfg settings")
-	} else {
-		v.sysctls = gocfg.Sysctl
-		v.user = gocfg.User
-	}
-
-	return v.loadLoggings(f)
-
-}
-
 func bootDisk() (string, error) {
-	f, err := os.Open(bootdev)
+
+	b, err := ioutil.ReadFile(bootdev)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	return string(b), nil
 
-	buf := make([]byte, 128)
-	_, err = f.Read(buf)
-	if err != nil {
-		return "", err
-	}
-
-	// we need to read from the disk into the struct
-	return terminatedNullString(buf), nil
 }
 
 /* readVCFG reads the the configuration for the VM from disk into the
    configuration struct */
 func (v *Vinitd) readVCFG(disk string) error {
 
+	logDebug("reading vcfg from disk %s", disk)
+
+	var (
+		blc  vimg.BootloaderConfig
+		vcfg vcfg.VCFG
+	)
+
 	f, err := os.Open(disk)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	off, err := f.Seek(vcfgOffset, os.SEEK_SET)
+	off, err := f.Seek(vcfgOffset, io.SeekStart)
 	if err != nil {
 		return err
 	}
@@ -393,19 +116,36 @@ func (v *Vinitd) readVCFG(disk string) error {
 		return fmt.Errorf("can not read vcfg, wrong offset")
 	}
 
-	var conf PersistedConf
-	err = binary.Read(f, binary.LittleEndian, &conf)
+	// var conf PersistedConf
+	err = binary.Read(f, binary.LittleEndian, &blc)
 	if err != nil {
 		return err
 	}
 
-	v.vcfg = conf
+	logDebug("kernel args: %s", string(blc.LinuxArgs[:]))
 
-	err = v.loadConfigs(disk)
+	_, err = f.Seek((int64)(vcfgOffset+blc.ConfigOffset), io.SeekStart)
 	if err != nil {
-		logError("error loading config: %s", err.Error())
 		return err
 	}
+
+	logDebug("config offset %d bytes", blc.ConfigOffset)
+
+	vb := make([]byte, blc.ConfigLen)
+	_, err = f.Read(vb)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(vb, &vcfg)
+	if err != nil {
+		return err
+	}
+
+	v.vcfg = vcfg
+
+	// we need to set the user here
+	v.user = vcfg.System.User
 
 	return nil
 }
@@ -611,10 +351,10 @@ func probe(creq cloudReq, v *Vinitd) {
 	for _, ifc := range v.ifcs {
 
 		var url string
-		if v.hypervisorInfo.cloud == CP_EC2 {
-			url = fmt.Sprintf(creq.interfaceUrl, creq.server)
+		if v.hypervisorInfo.cloud == cpEC2 {
+			url = fmt.Sprintf(creq.interfaceURL, creq.server)
 		} else {
-			url = fmt.Sprintf(creq.interfaceUrl, creq.server, ifc.idx)
+			url = fmt.Sprintf(creq.interfaceURL, creq.server, ifc.idx)
 		}
 
 		logDebug("probe ip url %s", url)
@@ -623,16 +363,16 @@ func probe(creq cloudReq, v *Vinitd) {
 			logWarn("error requesting metadata: %s", err.Error())
 			continue
 		}
-		logDebug("setting metadata %s to %s", fmt.Sprintf(ENV_EXT_IP, ifc.idx), r)
-		v.hypervisorInfo.envs[fmt.Sprintf(ENV_EXT_IP, ifc.idx)] = r
+		logDebug("setting metadata %s to %s", fmt.Sprintf(envExtIP, ifc.idx), r)
+		v.hypervisorInfo.envs[fmt.Sprintf(envExtIP, ifc.idx)] = r
 
 		// at the moment ec2 is only one network card
-		if v.hypervisorInfo.cloud == CP_EC2 {
+		if v.hypervisorInfo.cloud == cpEC2 {
 			break
 		}
 	}
 
-	url := fmt.Sprintf(creq.customDataUrl, creq.server)
+	url := fmt.Sprintf(creq.customDataURL, creq.server)
 	logDebug("probe custom url %s", url)
 
 	userdata, err := doMetadataRequest(url, creq.header, creq.query)
@@ -641,19 +381,19 @@ func probe(creq cloudReq, v *Vinitd) {
 		logDebug("error requesting metadata vorteil: %s", err.Error())
 	} else {
 		logDebug("setting metadata userdata to %s", userdata)
-		v.hypervisorInfo.envs[ENV_USERDATA] = userdata
+		v.hypervisorInfo.envs[envUserData] = userdata
 	}
 
 	// azure doesnt have this value
-	if len(creq.hostnameUrl) > 0 {
-		url := fmt.Sprintf(creq.hostnameUrl, creq.server)
+	if len(creq.hostnameURL) > 0 {
+		url := fmt.Sprintf(creq.hostnameURL, creq.server)
 		logDebug("probe hostname url %s", url)
 		hn, err := doMetadataRequest(url, creq.header, creq.query)
 		if err != nil {
 			logDebug("error requesting metadata hostname: %s", err.Error())
 		} else {
 			logDebug("setting metadata ENV_EXT_HOSTNAME %s", hn)
-			v.hypervisorInfo.envs[ENV_EXT_HOSTNAME] = hn
+			v.hypervisorInfo.envs[envExtHostname] = hn
 		}
 
 	}
@@ -663,19 +403,19 @@ func probe(creq cloudReq, v *Vinitd) {
 func basicEnv(v *Vinitd) {
 
 	// set basics
-	v.hypervisorInfo.envs[ENV_HYPERVISOR] = v.hypervisorInfo.hypervisorString()
-	v.hypervisorInfo.envs[ENV_CLOUD_PROVIDER] = v.hypervisorInfo.cloudString()
+	v.hypervisorInfo.envs[envHypervisor] = v.hypervisorInfo.hypervisorString()
+	v.hypervisorInfo.envs[envCloudProvider] = v.hypervisorInfo.cloudString()
 
-	v.hypervisorInfo.envs[ENV_ETH_COUNT] = fmt.Sprintf("%d", len(v.ifcs))
-	v.hypervisorInfo.envs[ENV_HOSTNAME] = v.hostname
-	v.hypervisorInfo.envs[ENV_EXT_HOSTNAME] = v.hostname
-	v.hypervisorInfo.envs[ENV_USERDATA] = ""
+	v.hypervisorInfo.envs[envEthCount] = fmt.Sprintf("%d", len(v.ifcs))
+	v.hypervisorInfo.envs[envHostname] = v.hostname
+	v.hypervisorInfo.envs[envExtHostname] = v.hostname
+	v.hypervisorInfo.envs[envUserData] = ""
 
 	for _, ifc := range v.ifcs {
-		v.hypervisorInfo.envs[fmt.Sprintf(ENV_IP, ifc.idx)] = ifc.addr.IP.String()
+		v.hypervisorInfo.envs[fmt.Sprintf(envIP, ifc.idx)] = ifc.addr.IP.String()
 
 		// we set the env variables with internal so they are never empty
-		v.hypervisorInfo.envs[fmt.Sprintf(ENV_EXT_IP, ifc.idx)] = ifc.addr.IP.String()
+		v.hypervisorInfo.envs[fmt.Sprintf(envExtIP, ifc.idx)] = ifc.addr.IP.String()
 	}
 
 }
@@ -686,12 +426,12 @@ func fetchCloudMetadata(v *Vinitd) {
 
 	logDebug("cloud values: %s %s", v.hypervisorInfo.hypervisorString(), v.hypervisorInfo.cloudString())
 
-	if v.hypervisorInfo.cloud == CP_AZURE {
+	if v.hypervisorInfo.cloud == cpAzure {
 		updateHealthAzure()
 		probe(azureReq, v)
-	} else if v.hypervisorInfo.cloud == CP_GCP {
+	} else if v.hypervisorInfo.cloud == cpGCP {
 		probe(gcpReq, v)
-	} else if v.hypervisorInfo.cloud == CP_EC2 {
+	} else if v.hypervisorInfo.cloud == cpEC2 {
 		probe(ec2Req, v)
 	}
 }
@@ -701,32 +441,32 @@ func hypervisorGuess(v *Vinitd, bios string) (hypervisor, cloud) {
 	logDebug("guessing hypervisor: %s", strings.TrimSpace(bios))
 
 	if strings.HasPrefix(bios, "SeaBIOS") {
-		return HV_KVM, CP_NONE
+		return hvKVM, cpNone
 	} else if strings.HasPrefix(bios, "innotek GmbH") {
-		return HV_VIRTUALBOX, CP_NONE
+		return hvVBox, cpNone
 	} else if strings.HasPrefix(bios, "Phoenix Technologies LTD") {
 		// start guestinfo vmtools
 		startVMTools(len(v.ifcs), v.hostname)
-		return HV_VMWARE, CP_NONE
+		return hvVMWare, cpNone
 	} else if strings.HasPrefix(bios, "Google") {
-		return HV_KVM, CP_GCP
+		return hvKVM, cpGCP
 	} else if strings.HasPrefix(bios, "Amazon") {
-		return HV_KVM, CP_EC2
+		return hvKVM, cpEC2
 	} else if strings.HasPrefix(bios, "Xen") {
 		if uuidHasEc2() {
-			return HV_XEN, CP_EC2
+			return hvXen, cpEC2
 		}
-		return HV_XEN, CP_NONE
+		return hvXen, cpNone
 	} else if strings.HasPrefix(bios, "American Megatrends Inc.") {
 		// the cloud value has been set by DHCP already, option 245
-		cp := CP_NONE
-		if v.hypervisorInfo.cloud == CP_AZURE {
-			cp = CP_AZURE
+		cp := cpNone
+		if v.hypervisorInfo.cloud == cpAzure {
+			cp = cpAzure
 		}
-		return HV_HYPERV, cp
+		return hvHyperV, cp
 	}
 
-	return HV_UNKNOWN, CP_UNKNOWN
+	return hvUnknown, cpUnknown
 
 }
 
@@ -786,6 +526,12 @@ func systemConfig(sysctls map[string]string, hostname string, maxFds int) error 
 	}
 
 	rlimit(unix.RLIMIT_NPROC, defaultNrProc)
+	logDebug("setting max procs to %d", defaultNrProc)
+
+	// make sure fds are at least 1024
+	maxFds = max(minFds, maxFds)
+	logDebug("setting max-fds to %d", maxFds)
+
 	rlimit(unix.RLIMIT_NOFILE, uint64(maxFds*2))
 
 	type sysVal struct {

@@ -16,12 +16,12 @@ import (
 )
 
 const (
-	PROC_CN_MCAST_LISTEN = 1
-	CN_IDX_PROC          = 1
-	CN_VAL_PROC          = 1
-	PROC_EVENT_EXIT      = 0x80000000
-	PROC_EVENT_FORK      = 0x00000001
-	PROC_EVENT_EXEC      = 0x00000002
+	procCNMCASTListen = 1
+	cnIDXProc         = 1
+	cnValProc         = 1
+	procEventExit     = 0x80000000
+	procEventFork     = 0x00000001
+	procEventExec     = 0x00000002
 
 	busboxScript = "/vorteil/busybox-install.sh"
 )
@@ -31,6 +31,7 @@ var (
 	internal map[uint32]string
 )
 
+// ProcEventHeader ...
 type ProcEventHeader struct {
 	What        uint32
 	CPU         uint32
@@ -39,6 +40,7 @@ type ProcEventHeader struct {
 	ProcessTgid uint32
 }
 
+// CnMsg ...
 type CnMsg struct {
 	ID    CbID
 	Seq   uint32
@@ -47,6 +49,7 @@ type CnMsg struct {
 	Flags uint16
 }
 
+// CbID ...
 type CbID struct {
 	Idx uint32
 	Val uint32
@@ -81,11 +84,11 @@ LINUX_REBOOT_CMD_POWER_OFF       = 0x4321fedc
 LINUX_REBOOT_CMD_RESTART         = 0x1234567 */
 func shutdown(cmd, timeout int) {
 
-	if initStatus == STATUS_POWEROFF {
+	if initStatus == statusPoweroff {
 		return
 	}
 
-	initStatus = STATUS_POWEROFF
+	initStatus = statusPoweroff
 
 	logAlways("shutting down applications")
 
@@ -124,7 +127,7 @@ func listenToProcesses(progs []*program) {
 		return
 	}
 
-	addr := &unix.SockaddrNetlink{Family: unix.AF_NETLINK, Groups: CN_IDX_PROC, Pid: uint32(os.Getpid())}
+	addr := &unix.SockaddrNetlink{Family: unix.AF_NETLINK, Groups: cnIDXProc, Pid: uint32(os.Getpid())}
 	err = unix.Bind(sock, addr)
 
 	if err != nil {
@@ -132,7 +135,7 @@ func listenToProcesses(progs []*program) {
 		return
 	}
 
-	err = send(sock, PROC_CN_MCAST_LISTEN)
+	err = send(sock, procCNMCASTListen)
 	if err != nil {
 		logError("send for process listening failed: %s", err.Error())
 		return
@@ -168,7 +171,7 @@ func handleExit(hdr *ProcEventHeader, progs []*program) {
 
 			// check if all apps have started. they might be in bootstrap
 			for _, p := range progs {
-				if p.status == STATUS_SETUP {
+				if p.status == statusSetup {
 					return
 				}
 			}
@@ -188,8 +191,9 @@ func parseNetlinkMessage(m syscall.NetlinkMessage, progs []*program) {
 		binary.Read(buf, binary.LittleEndian, hdr)
 
 		switch hdr.What {
-		case PROC_EVENT_FORK:
-		case PROC_EVENT_EXEC:
+		case procEventFork:
+			fallthrough
+		case procEventExec:
 			{
 				st, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", hdr.ProcessTgid))
 				if err != nil {
@@ -202,10 +206,9 @@ func parseNetlinkMessage(m syscall.NetlinkMessage, progs []*program) {
 				} else {
 					internal[hdr.ProcessTgid] = st
 				}
-
 				break
 			}
-		case PROC_EVENT_EXIT:
+		case procEventExit:
 			{
 				handleExit(hdr, progs)
 			}
@@ -218,7 +221,7 @@ func send(sock int, msg uint32) error {
 		Ack: 0,
 		Seq: 1,
 	}
-	destAddr := &unix.SockaddrNetlink{Family: unix.AF_NETLINK, Groups: CN_IDX_PROC, Pid: 0} // the kernel
+	destAddr := &unix.SockaddrNetlink{Family: unix.AF_NETLINK, Groups: cnIDXProc, Pid: 0} // the kernel
 	header := unix.NlMsghdr{
 		Len:   unix.NLMSG_HDRLEN + uint32(binary.Size(cnMsg)+binary.Size(msg)),
 		Type:  uint16(unix.NLMSG_DONE),
@@ -226,7 +229,7 @@ func send(sock int, msg uint32) error {
 		Seq:   1,
 		Pid:   uint32(os.Getpid()),
 	}
-	cnMsg.ID = CbID{Idx: CN_IDX_PROC, Val: CN_VAL_PROC}
+	cnMsg.ID = CbID{Idx: cnIDXProc, Val: cnValProc}
 	cnMsg.Len = uint16(binary.Size(msg))
 
 	buf := bytes.NewBuffer(make([]byte, 0, header.Len))

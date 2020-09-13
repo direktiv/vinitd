@@ -9,11 +9,14 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-reap"
+	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
 
@@ -27,8 +30,8 @@ const (
 	userID = 1000
 )
 
-func pickFromEnv(env string, p *program) string {
-	for _, e := range p.env.values {
+func pickFromEnv(env string, p vcfg.Program) string {
+	for _, e := range p.Env {
 		es := strings.SplitN(e, "=", 2)
 		if es[0] == env {
 			return es[1]
@@ -37,21 +40,22 @@ func pickFromEnv(env string, p *program) string {
 	return ""
 }
 
-func calculatePath(p *program) string {
+// func calculatePath(p vcfg.Program) string {
+func calculatePath(ppath string, p vcfg.Program) string {
 
 	// nothing to caluclate if absolute
-	if path.IsAbs(p.path) {
-		return p.path
+	if path.IsAbs(ppath) {
+		return ppath
 	}
 
 	// if that file exists we return
-	if _, err := os.Stat(filepath.Join(p.cwd, p.path)); err == nil {
+	if _, err := os.Stat(filepath.Join(p.Cwd, ppath)); err == nil {
 		// if that file exists we return the absolute path
 		// if there is an error we are trying to just add a leading /
-		path, err := filepath.Abs(filepath.Join(p.cwd, p.path))
+		path, err := filepath.Abs(filepath.Join(p.Cwd, ppath))
 		if err != nil {
-			logError("can not create path for %s, err %v", p.path, err)
-			return fmt.Sprintf("/%s", p.path)
+			logError("can not create path for %s, err %v", ppath, err)
+			return fmt.Sprintf("/%s", ppath)
 		}
 		return path
 	}
@@ -60,8 +64,8 @@ func calculatePath(p *program) string {
 	pathEnv := strings.Split(pickFromEnv(pathEnvName, p), pathSeperator)
 	if len(pathEnv) > 0 {
 		for _, c := range pathEnv {
-			if _, err := os.Stat(filepath.Join(c, p.path)); err == nil {
-				return filepath.Join(c, p.path)
+			if _, err := os.Stat(filepath.Join(c, ppath)); err == nil {
+				return filepath.Join(c, ppath)
 			}
 		}
 	}
@@ -69,33 +73,67 @@ func calculatePath(p *program) string {
 	return ""
 }
 
-func (p *program) launch() error {
+func fixDefaults(p *vcfg.Program) {
 
-	// strace override
-	if p.strace == 0x1 {
-		p.args.values = append(p.args.values, "")
-		copy(p.args.values[1:], p.args.values)
-		p.args.values[0] = p.fpath
-		p.fpath = "/vorteil/strace"
+	if p.Stderr == "" {
+		p.Stderr = defaultTTY
 	}
 
-	cmd := exec.Command(p.fpath, p.args.values...)
-	cmd.Env = p.env.values
-	cmd.Dir = p.cwd
+	if p.Stdout == "" {
+		p.Stdout = defaultTTY
+	}
 
-	var user string
-	var rid int
+	// Treat empty cwd as "/" because calculatePath Filepath.Join functions break
+	// when joining empty cwd with relative path
+	if p.Cwd == "" {
+		p.Cwd = defaultCWD
+	}
 
-	switch p.privilege {
-	case 0: // root privilege
+}
+
+func waitForApp(cmd *exec.Cmd) {
+
+	logDebug("waiting for process %d", cmd.Process.Pid)
+	err := cmd.Wait()
+	if err != nil {
+		logError("error while waiting: %s", err.Error())
+		return
+	}
+	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
+
+}
+
+func (p *program) launch(systemUser string) error {
+
+	fixDefaults(&p.vcfgProg)
+
+	// strace override
+	if p.vcfgProg.Strace {
+		p.args = append(p.args, "")
+		copy(p.args[1:], p.args)
+		p.args[0] = p.path
+		p.path = "/vorteil/strace"
+	}
+
+	cmd := exec.Command(p.path, p.args...)
+	cmd.Env = p.env
+	cmd.Dir = p.vcfgProg.Cwd
+
+	var (
+		user string
+		rid  int
+	)
+
+	switch p.vcfgProg.Privilege {
+	case vcfg.SuperuserPrivilege: // superuser privilege
+		user = fmt.Sprintf("%s (superuser)", systemUser)
+		rid = userID
+	case vcfg.UserPrivilege:
+		user = systemUser
+		rid = userID
+	default: // root privilege
 		rid = rootID
 		user = "root"
-	case 1: // superuser privilege
-		user = fmt.Sprintf("%s (superuser)", p.vinitd.user)
-		rid = userID
-	default: // user privilege
-		user = p.vinitd.user
-		rid = userID
 	}
 
 	// either root or uid 1000
@@ -103,7 +141,7 @@ func (p *program) launch() error {
 		Credential: &syscall.Credential{Uid: uint32(rid), Gid: uint32(rid)},
 	}
 
-	if p.privilege == 1 {
+	if p.vcfgProg.Privilege == "superuser" {
 		cmd.SysProcAttr.AmbientCaps = []uintptr{
 			unix.CAP_CHOWN,
 			unix.CAP_DAC_OVERRIDE,
@@ -121,21 +159,21 @@ func (p *program) launch() error {
 	logDebug("starting as %s, uid %d", user, rid)
 
 	// Create stderr dir if it does not exists
-	if _, err := os.Stat(filepath.Dir(p.stderr)); os.IsNotExist(err) {
-		os.MkdirAll(filepath.Dir(p.stderr), 0)
+	if _, err := os.Stat(filepath.Dir(p.vcfgProg.Stderr)); os.IsNotExist(err) {
+		os.MkdirAll(filepath.Dir(p.vcfgProg.Stderr), 0)
 	}
 
-	stderr, err := os.OpenFile(p.stderr, os.O_WRONLY|os.O_APPEND, 0)
+	stderr, err := os.OpenFile(p.vcfgProg.Stderr, os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
 		return err
 	}
 
 	// Create stdout dir if it does not exists
-	if _, err := os.Stat(filepath.Dir(p.stdout)); os.IsNotExist(err) {
-		os.MkdirAll(filepath.Dir(p.stdout), 0)
+	if _, err := os.Stat(filepath.Dir(p.vcfgProg.Stdout)); os.IsNotExist(err) {
+		os.MkdirAll(filepath.Dir(p.vcfgProg.Stdout), 0)
 	}
 
-	stdout, err := os.OpenFile(p.stdout, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0)
+	stdout, err := os.OpenFile(p.vcfgProg.Stdout, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0)
 	if err != nil {
 		return err
 	}
@@ -145,31 +183,39 @@ func (p *program) launch() error {
 
 	err = cmd.Start()
 	if err != nil {
+		p.status = statusError
 		return err
 	}
 
-	p.status = STATUS_RUN
+	p.status = statusRun
+
+	go waitForApp(cmd)
+
+	logDebug("started %s as pid %d", p.path, cmd.Process.Pid)
 
 	return nil
 }
 
-// bootstrapWaitForFile hangs process until the file appears, times out after 30 seconds.
-func bootstrapWaitForFile(b *bootstrapInstruction, p *program) {
+// bootstrapWaitForFile hangs process until the file appears
+// warns every 30 seconds.
+func bootstrapWaitForFile(args []string, p *program) {
+
+	args = args[1:]
 	// check length of args to see atleast one path
-	if len(b.args) != 1 {
-		logWarn("bootstrap 'WAIT_FILE' needs one value")
+	if len(args) != 1 {
+		logError("bootstrap 'WAIT_FILE' needs one value")
 		return
 	}
 
-	// Loop through and stat the path to see when it exists
+	// loop through and stat the path to see when it exists
 	count := 0
 	for {
-		if _, err := os.Stat(b.args[0]); err == nil {
+		if _, err := os.Stat(args[0]); err == nil {
 			break
 		}
-		// Check count log a warning saying file hasn't appeared in 30 seconds repeat action
-		if count%30 == 0 {
-			logWarn("bootstrap 'WAIT_FILE' file %s hasn't appeared yet", b.args[0])
+		// check count log a warning saying file hasn't appeared in 30 seconds repeat action
+		if count%30 == 0 && count > 0 {
+			logWarn("bootstrap 'WAIT_FILE' file %s has not appeared yet", args[0])
 		}
 		count++
 		time.Sleep(time.Second * 1)
@@ -178,16 +224,18 @@ func bootstrapWaitForFile(b *bootstrapInstruction, p *program) {
 }
 
 // bootstrapWaitForPort hands process until the ports appear for certain network types, timesout after 30 seconds
-func bootstrapWaitForPort(b *bootstrapInstruction, p *program) {
+func bootstrapWaitForPort(args []string, p *program) {
+
+	args = args[1:]
 
 	// b.args[0] should be ifce, b.args[1:] should be all network
-	if len(b.args) < 2 {
-		logWarn("bootstrap 'WAIT_PORT' needs at least one value to listen out for")
+	if len(args) < 2 {
+		logError("bootstrap 'WAIT_PORT' needs at least one value to listen out for")
 		return
 	}
 
 	// interface to look on should always exist if they provide it if not its default eth0
-	ief := strings.Split(b.args[0], "=")[1]
+	ief := strings.Split(args[0], "=")[1]
 	ifce, err := net.InterfaceByName(ief)
 	if err != nil {
 		logError("bootstrap 'WAIT_PORT' unable to fetch interface %s: %s", ief, err)
@@ -213,7 +261,7 @@ func bootstrapWaitForPort(b *bootstrapInstruction, p *program) {
 
 	var wg sync.WaitGroup
 	// Loop through ports and attempt connections
-	for _, arg := range strings.Split(strings.TrimSpace(strings.Join(b.args[1:], " ")), " ") {
+	for _, arg := range strings.Split(strings.TrimSpace(strings.Join(args[1:], " ")), " ") {
 		// listen for ports to be alive
 		wg.Add(1)
 		// go routine it to test all ports currently asked for
@@ -252,38 +300,43 @@ func checkIfIPV4(addr string) (string, bool) {
 	return ip.String(), strings.Count(ip.String(), ":") < 2
 }
 
-func bootstrapNotdefined(b *bootstrapInstruction, p *program) string {
+func bootstrapNotdefined(args []string, p *program) string {
+
+	args = args[1:]
 
 	// if this is not a pair, we ignore
-	if len(b.args) != 2 {
-		// p.vinitd.Logging(LOG_WARNING, "bootstrap 'DEFINE_IF_NOT_DEFINED' needs two values")
+	if len(args) != 2 {
+		logError("bootstrap 'DEFINE_IF_NOT_DEFINED' needs two values")
 		return ""
 	}
 
 	// check if it has been set
-	for _, val := range p.env.values {
-		if strings.HasPrefix(val, fmt.Sprintf("%s=", b.args[0])) {
+	for _, val := range p.env {
+		if strings.HasPrefix(val, fmt.Sprintf("%s=", args[0])) {
 			return ""
 		}
 	}
 
 	for k, val := range p.vinitd.hypervisorInfo.envs {
-		b.args[1] = strings.ReplaceAll(b.args[1], fmt.Sprintf(replaceString, k), val)
+		args[1] = strings.ReplaceAll(args[1], fmt.Sprintf(replaceString, k), val)
 	}
 
-	return fmt.Sprintf(environString, b.args[0], b.args[1])
+	return fmt.Sprintf(environString, args[0], args[1])
 
 }
 
-func bootstrapReplace(b *bootstrapInstruction, p *program) {
+// func bootstrapReplace(b *bootstrapInstruction) {
+func bootstrapReplace(args []string, p *program) {
 
-	if len(b.args) != 3 {
-		logWarn("bootstrap 'FIND_AND_REPLACE' needs two values")
+	args = args[1:]
+
+	if len(args) != 3 {
+		logError("bootstrap 'FIND_AND_REPLACE' needs two values")
 		return
 	}
 
 	m := make(map[string]string)
-	for _, a := range b.args {
+	for _, a := range args {
 		aa := strings.SplitN(a, "=", 2)
 		m[aa[0]] = aa[1]
 	}
@@ -295,7 +348,7 @@ func bootstrapReplace(b *bootstrapInstruction, p *program) {
 	}
 
 	// check if it has been set
-	for _, val := range p.env.values {
+	for _, val := range p.env {
 		s := strings.SplitN(val, "=", 2)
 		m["replace"] = strings.ReplaceAll(m["replace"], fmt.Sprintf(replaceString, s[0]), s[1])
 	}
@@ -310,43 +363,51 @@ func bootstrapReplace(b *bootstrapInstruction, p *program) {
 
 func (p *program) bootstrap() error {
 
-	for _, b := range p.bootstraps {
-		switch b.btype {
-		case BOOTSTRAP_SLEEP:
+	for _, b := range p.vcfgProg.Bootstrap {
+
+		bs := strings.Split(b, " ")
+
+		if len(bs) == 0 {
+			logError("can not parse bootstrap %s", bs)
+			continue
+		}
+
+		switch bs[0] {
+		case bootstrapSleep:
 			{
-				time.Sleep(time.Duration(b.time) * time.Millisecond)
-				break
-			}
-		case BOOTSTRAP_WAIT_FILE:
-			{
-				bootstrapWaitForFile(b, p)
-				break
-			}
-		case BOOTSTRAP_WAIT_PORT:
-			{
-				bootstrapWaitForPort(b, p)
-				break
-			}
-		case BOOTSTRAP_FIND_AND_REPLACE:
-			{
-				bootstrapReplace(b, p)
-				break
-			}
-		case BOOTSTRAP_DEFINE_IF_NOT_DEFINED:
-			{
-				s := bootstrapNotdefined(b, p)
-				if len(s) > 0 {
-					p.env.count++
-					p.env.values = append(p.env.values, s)
+				s, err := strconv.Atoi(bs[1])
+				if err != nil {
+					logError("can not parse sleep bootstrap %s", bs)
+					continue
 				}
+				time.Sleep(time.Duration(s) * time.Millisecond)
+			}
+		case bootstrapWaitFile:
+			{
+				bootstrapWaitForFile(bs, p)
 				break
+			}
+		case bootstrapWaitPort:
+			{
+				bootstrapWaitForPort(bs, p)
+				break
+			}
+		case bootstrapFandR:
+			{
+				bootstrapReplace(bs, p)
+			}
+		case bootstrapDefine:
+			{
+				s := bootstrapNotdefined(bs, p)
+				if len(s) > 0 {
+					p.env = append(p.env, s)
+				}
 			}
 		default:
 			{
-				logError("unknown bootstrap command: %d", b.btype)
+				logError("unknown bootstrap command: %d", bs[0])
 			}
 		}
-		// p.vinitd.logAlways("BOOTST %v", b)
 	}
 
 	return nil
@@ -394,40 +455,61 @@ func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 	return newEnvs
 }
 
-func launchProgram(p *program, hvenvs map[string]string) error {
+func (v *Vinitd) prepProgram(p vcfg.Program) error {
 
-	fpath := calculatePath(p)
-
-	if len(fpath) == 0 {
-		logError("application %s (%s) does not exist", p.path, fpath)
-		return fmt.Errorf("program %s can not be found", p.path)
+	// we can add the program to the list now
+	np := &program{
+		vcfgProg: p,
+		status:   statusSetup,
+		vinitd:   v,
 	}
 
-	p.fpath = fpath
+	v.programs = append(v.programs, np)
 
-	logDebug("launching %s", fpath)
+	return nil
+}
+
+func (v *Vinitd) launchProgram(np *program) error {
+
+	p := np.vcfgProg
 
 	// get envs and substitue with cloud args
-	pEnvs := envs(p.env.values, hvenvs)
-	p.env.values = pEnvs
+	pEnvs := envs(p.Env, v.hypervisorInfo.envs)
+	np.env = pEnvs
 
 	// replace args cloud args as well plus existing envs
-	p.args.values = args(p.args.values[1:], pEnvs)
+	pArgs, err := p.ProgramArgs()
+	if err != nil {
+		return err
+	}
+	np.args = args(pArgs[1:], np.env)
+
+	np.path = calculatePath(pArgs[0], p)
+
+	if len(np.path) == 0 {
+		logError("application %s (%s) does not exist", pArgs[0], np.path)
+		return fmt.Errorf("program %s can not be found", pArgs[0])
+	}
+
+	logDebug("launching %s", np.path)
 
 	// run bootstrap functions
-	p.bootstrap()
+	np.bootstrap()
 
-	err := p.launch()
+	logDebug("launch args %v", np.args)
+	logDebug("launch envs %v", np.env)
+
+	err = np.launch(v.user)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// that can be a missing binary or missing linker
 			// let's try to make the error message better
 			// if the binary exists it has to be a missing linker
-			if _, err := os.Stat(fpath); err == nil {
-				return fmt.Errorf("ld linker missing for %s", fpath)
+			if _, err := os.Stat(np.path); err == nil {
+				return fmt.Errorf("ld linker missing for %s", np.path)
 			}
 
-			return fmt.Errorf("%s application missing", fpath)
+			return fmt.Errorf("%s application missing", np.path)
 
 		}
 		return err
@@ -436,20 +518,42 @@ func launchProgram(p *program, hvenvs map[string]string) error {
 	return nil
 }
 
+func reapProcs() {
+
+	pids := make(reap.PidCh, 1)
+	errors := make(reap.ErrorCh, 1)
+
+	go reap.ReapChildren(pids, errors, nil, nil)
+
+	for {
+		select {
+		case pid := <-pids:
+			logDebug("process %d finished", pid)
+		case err := <-errors:
+			logError("error wait pid %s", err.Error())
+		}
+	}
+
+}
+
 func (v *Vinitd) Launch() error {
 
 	var wg sync.WaitGroup
-	wg.Add(len(v.programs))
+	wg.Add(len(v.vcfg.Programs))
+
+	logDebug("starting %d programs", len(v.vcfg.Programs))
 
 	errors := make(chan error)
 	wgDone := make(chan bool)
+
+	go reapProcs()
 
 	go listenToProcesses(v.programs)
 
 	for _, p := range v.programs {
 
 		go func(p *program) {
-			err := launchProgram(p, v.hypervisorInfo.envs)
+			err := v.launchProgram(p)
 			if err != nil {
 				errors <- err
 			}

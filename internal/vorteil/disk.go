@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	EXT4_IOC_RESIZE_FS = 0x40086610
-	XFS_GROW_FS        = 0x4010586e
-	XFS_GEOM           = 0x8100587e
+	ext4IOCResizeFS = 0x40086610
+	xfsGrowFS       = 0x4010586e
+	xfsGeom         = 0x8100587e
 )
 
 type xfsGrowFSData struct {
@@ -201,7 +201,7 @@ func growDisk(f *os.File, p string) error {
 		if _, _, e := syscall.Syscall(
 			syscall.SYS_IOCTL,
 			uintptr(rootFS.Fd()),
-			uintptr(XFS_GEOM),
+			uintptr(xfsGeom),
 			uintptr(unsafe.Pointer(geom)),
 		); e != 0 {
 			return fmt.Errorf("error getting xfs geometry: %s", syscall.Errno(e))
@@ -213,7 +213,7 @@ func growDisk(f *os.File, p string) error {
 		if _, _, e := syscall.Syscall(
 			syscall.SYS_IOCTL,
 			uintptr(rootFS.Fd()),
-			uintptr(XFS_GROW_FS),
+			uintptr(xfsGrowFS),
 			uintptr(unsafe.Pointer(x)),
 		); e != 0 {
 			return fmt.Errorf("error resizing xfs filesystem: %s", syscall.Errno(e))
@@ -223,7 +223,7 @@ func growDisk(f *os.File, p string) error {
 		fallthrough
 	case Ext4FS:
 		logDebug("detected ext filesystem")
-		resizeFSFlag := uintptr(EXT4_IOC_RESIZE_FS)
+		resizeFSFlag := uintptr(ext4IOCResizeFS)
 		if _, _, e := syscall.Syscall(
 			syscall.SYS_IOCTL,
 			uintptr(rootFS.Fd()),

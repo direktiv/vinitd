@@ -55,7 +55,7 @@ func TestEtcFilesExist(t *testing.T) {
 	defer os.Remove(base)
 
 	// create all filename
-	for _, f := range EtcFiles {
+	for _, f := range etcFiles {
 		err = createEtcFile(base, f)
 		assert.NoError(t, err)
 	}
@@ -64,7 +64,7 @@ func TestEtcFilesExist(t *testing.T) {
 	assert.NoError(t, err)
 
 	// all files existed so they should have still the same size
-	for _, f := range EtcFiles {
+	for _, f := range etcFiles {
 		fi, err := os.Stat(filepath.Join(base, f))
 		assert.NoError(t, err)
 		assert.Equal(t, fi.Size(), int64(len(testString)))
@@ -90,7 +90,7 @@ func TestEtcFilesNotExist(t *testing.T) {
 	assert.NoError(t, err)
 
 	// compare the original etc file and new one as md5 hash
-	for _, f := range EtcFiles {
+	for _, f := range etcFiles {
 		newFile := filepath.Join(base, f)
 		origFile := fmt.Sprintf("../../build/etc/%s.dat", f)
 

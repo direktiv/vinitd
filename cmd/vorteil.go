@@ -78,7 +78,7 @@ func main() {
 	}
 
 	for _, s := range ss {
-		vorteil.LogFnKernel(vorteil.LOG_DEBUG, "starting seq %s", s.name)
+		vorteil.LogFnKernel(vorteil.LogLvDEBUG, "starting seq %s", s.name)
 		err := s.fn()
 		if err != nil {
 			vorteil.SystemPanic("can not run %s: %s", s.name, err.Error())

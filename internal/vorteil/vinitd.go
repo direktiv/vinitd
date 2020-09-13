@@ -140,7 +140,7 @@ func (v *Vinitd) Setup() error {
 	}
 
 	// update tty to settings in vcfg
-	setupVtty(int(v.vcfg.Kernel.LogType))
+	setupVtty(v.vcfg.System.StdoutMode)
 
 	go waitForSignal()
 
@@ -154,13 +154,13 @@ func (v *Vinitd) Setup() error {
 	printVersion()
 
 	// generate hostname before running setup steps in parallel
-	// (v.NetworkSetup and v.etcGenerateFiles both need the hostname value)
-	h := v.vcfg.Net.Hostname[:]
-	hn, err := setHostname(terminatedNullString(h))
+	hn, err := setHostname(v.vcfg.SaltedHostname())
 	if err != nil {
 		logWarn("could not set hostname: %s", err.Error())
+	} else {
+		v.hostname = hn
 	}
-	v.hostname = hn
+	logDebug("set hostname to %s", hn)
 
 	errors := make(chan error)
 	wgDone := make(chan bool)
@@ -178,9 +178,9 @@ func (v *Vinitd) Setup() error {
 	}()
 
 	go func() {
-		err = systemConfig(v.sysctls, v.hostname, int(v.vcfg.Kernel.MaxFds))
+		err = systemConfig(v.vcfg.Sysctl, v.hostname, int(v.vcfg.System.MaxFDs))
 		if err != nil {
-			logError("can not setup shared memory: %s", err.Error())
+			logError("can not setup basic config: %s", err.Error())
 		}
 		wg.Done()
 	}()
@@ -209,6 +209,10 @@ func (v *Vinitd) Setup() error {
 		SystemPanic("sytem setup failed: %s", err.Error())
 	}
 
+	for _, p := range v.vcfg.Programs {
+		v.prepProgram(p)
+	}
+
 	logDebug("system setup successful")
 
 	return nil
@@ -217,7 +221,7 @@ func (v *Vinitd) Setup() error {
 func (v *Vinitd) PostSetup() error {
 
 	// start a DNS on 127.0.0.1
-	err := v.startDNS(defaultDnsAddr)
+	err := v.startDNS(defaultDNSAddr)
 
 	// we might be able to run
 	if err != nil {
@@ -231,12 +235,12 @@ func (v *Vinitd) PostSetup() error {
 	wg.Add(5)
 
 	go func() {
-		setupNFS(v.vcfg.Vfs.NFS)
+		setupNFS(v.vcfg.NFS)
 		wg.Done()
 	}()
 
 	go func() {
-		if len(v.logEntries) > 0 {
+		if len(v.vcfg.Logging) > 0 {
 			v.startLogging()
 		}
 		wg.Done()
@@ -248,15 +252,15 @@ func (v *Vinitd) PostSetup() error {
 		bios, err := ioutil.ReadFile("/sys/devices/virtual/dmi/id/bios_vendor")
 		if err != nil {
 			logWarn("can not read bios vendor")
-			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = HV_UNKNOWN, CP_UNKNOWN
+			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hvUnknown, cpUnknown
 			wg.Done()
 			return
-		} else {
-			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hypervisorGuess(v, string(bios))
 		}
 
+		v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hypervisorGuess(v, string(bios))
 		fetchCloudMetadata(v)
 		wg.Done()
+
 	}()
 
 	// prepare shell if --shell is provided
@@ -270,7 +274,7 @@ func (v *Vinitd) PostSetup() error {
 
 	// Setup ChronyD NTP Server
 	go func() {
-		if err := setupChronyD(v.vcfg.Kernel.NTP); err != nil {
+		if err := setupChronyD(v.vcfg.System.NTP); err != nil {
 			errors <- err
 		}
 		wg.Done()
@@ -291,7 +295,7 @@ func (v *Vinitd) PostSetup() error {
 	}
 
 	logDebug("post setup finished successfully")
-	initStatus = STATUS_RUN
+	initStatus = statusRun
 
 	return nil
 }

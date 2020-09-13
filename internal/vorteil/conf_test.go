@@ -32,10 +32,10 @@ func startHttpServer() *http.Server {
 
 	server := &http.Server{Addr: "0.0.0.0:7777"}
 
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-		}
-	}()
+	// go func() {
+	// 	if err := server.ListenAndServe(); err != nil {
+	// 	}
+	// }()
 
 	return server
 

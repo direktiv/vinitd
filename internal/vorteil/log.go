@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
 
@@ -16,31 +17,31 @@ var (
 )
 
 const (
-	MSG_IOCTL_OUTPUT       = 0x40042101
-	MSG_IOCTL_OUTPUT_STYLE = 0x40042102
+	msgIOCTLOutput = 0x40042101
 )
 
 func logAlways(format string, values ...interface{}) {
 	// write to stderr and kernel logs
-	vlog(LOG_STDERR, format, values...)
-	vlog(LOG_DEBUG, format, values...)
+	vlog(LogLvSTDERR, format, values...)
+	vlog(LogLvDEBUG, format, values...)
 }
 
 func logDebug(format string, values ...interface{}) {
-	vlog(LOG_DEBUG, format, values...)
+	vlog(LogLvDEBUG, format, values...)
 }
 
 func logWarn(format string, values ...interface{}) {
-	vlog(LOG_WARNING, format, values...)
+	vlog(LogLvWARNING, format, values...)
 }
 
+// SystemPanic prints error message and shuts down the system
 func SystemPanic(format string, values ...interface{}) {
 	logAlways(format, values...)
 	shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, forcedPoweroffTimeout)
 }
 
 func logError(format string, values ...interface{}) {
-	vlog(LOG_STDERR, format, values...)
+	vlog(LogLvSTDERR, format, values...)
 }
 
 func writeToOut(out *os.File, format string, values ...interface{}) {
@@ -55,11 +56,11 @@ func LogFnStdout(level LogLevel, format string, values ...interface{}) {
 	writeToOut(os.Stdout, format, values...)
 }
 
-/* LogFnKernel prints messages to /dev/kmsg. Based on the kernel's LogLevel
-   messages will appear on stdout. LOG_STDERR always prints to screen independent
-   of log level */
+// LogFnKernel prints messages to /dev/kmsg. Based on the kernel's LogLevel
+// messages will appear on stdout. LOG_STDERR always prints to screen independent
+// of log level
 func LogFnKernel(level LogLevel, format string, values ...interface{}) {
-	if level == LOG_STDERR {
+	if level == LogLvSTDERR {
 		writeToOut(os.Stderr, format, values...)
 	} else {
 
@@ -98,19 +99,19 @@ func printVersion() error {
 	return nil
 }
 
-func setupVtty(mode int) {
+func setupVtty(mode vcfg.StdoutMode) {
 
 	file, err := os.OpenFile(defaultTTY, os.O_RDWR, 0)
 	if err != nil {
-		LogFnKernel(LOG_ERR, "can not open vtty: %s", err.Error())
+		LogFnKernel(LogLvERR, "can not open vtty: %s", err.Error())
 	}
 	defer file.Close()
 
 	_, _, ep := unix.Syscall(unix.SYS_IOCTL, file.Fd(),
-		MSG_IOCTL_OUTPUT, uintptr(unsafe.Pointer(&mode)))
+		msgIOCTLOutput, uintptr(unsafe.Pointer(&mode)))
 	if ep != 0 {
 		if err != nil {
-			LogFnKernel(LOG_ERR, "can not ioctl vtty: %s", err.Error())
+			LogFnKernel(LogLvERR, "can not ioctl vtty: %s", err.Error())
 		}
 	}
 

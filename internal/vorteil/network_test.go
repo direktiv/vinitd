@@ -2,18 +2,19 @@ package vorteil
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestNetworkSetup(t *testing.T) {
-
-}
-
-func TestHandleNetworkTCPDump(t *testing.T) {
-
-}
+// func TestNetworkSetup(t *testing.T) {
+//
+// }
+//
+// func TestHandleNetworkTCPDump(t *testing.T) {
+//
+// }
 
 func TestValidateHostname(t *testing.T) {
 

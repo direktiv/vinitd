@@ -21,15 +21,16 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/client4"
 	"github.com/vishvananda/netlink"
+	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
 
 type networkType int
 
 const (
-	DEVTYPE_UNKOWN    networkType = iota
-	DEVTYPE_NET                   = iota
-	DEVTYPE_LOCALHOST             = iota
+	devtypeUnknown   networkType = iota
+	devtypeNet                   = iota
+	devtypeLocalhost             = iota
 )
 
 const (
@@ -40,24 +41,24 @@ const (
 	dhcpDefaultRenew          = 360
 	azureEndpointServerOption = 245
 
-	ETHTOOL_SGSO       = 0x00000024
-	ETHTOOL_SUFO       = 0x00000022
-	ETHTOOL_STSO       = 0x0000001f
-	ETHTOOL_SRXCSUM    = 0x00000015
-	ETHTOOL_STXCSUM    = 0x00000017
-	ETHTOOL_SSG        = 0x00000019
-	ETHTOOL_GCHANNELS  = 0x0000003c
-	ETHTOOL_SCHANNELS  = 0x0000003d
-	ETHTOOL_GRINGPARAM = 0x00000010
-	ETHTOOL_SRINGPARAM = 0x00000011
-	SIOCETHTOOL        = 0x8946
-	IFNAMSIZ           = 16
+	ethtoolSGSO       = 0x00000024
+	ethtoolSUFO       = 0x00000022
+	ethtoolSTSO       = 0x0000001f
+	ethtoolSRXCSUM    = 0x00000015
+	ethtoolSTXCSUM    = 0x00000017
+	ethtoolSSG        = 0x00000019
+	ethtoolGCHANNELS  = 0x0000003c
+	ethtoolSCHANNELS  = 0x0000003d
+	ethtoolGRINGPARAM = 0x00000010
+	ethtoolSRINGPARAM = 0x00000011
+	siocETHTOOL       = 0x8946
+	ifNameSz          = 16
 )
 
 var (
-	tsoAttrs = []int{ETHTOOL_SSG, ETHTOOL_SUFO, ETHTOOL_STSO,
-		ETHTOOL_SGSO, ETHTOOL_SRXCSUM, ETHTOOL_STXCSUM}
-	HOSTNAME_SALT = "$SALT" // replace with 8 random chars
+	tsoAttrs = []int{ethtoolSSG, ethtoolSUFO, ethtoolSTSO,
+		ethtoolSGSO, ethtoolSRXCSUM, ethtoolSTXCSUM}
+	hostnameSalt = "$SALT" // replace with 8 random chars
 )
 
 // TCPDUMP vars
@@ -69,8 +70,8 @@ var (
 )
 
 type ifreq struct {
-	ifr_name [IFNAMSIZ]byte
-	ifr_data uintptr
+	ifrName [ifNameSz]byte
+	ifrData uintptr
 }
 
 type ethtoolValue struct {
@@ -91,49 +92,49 @@ type channels struct {
 }
 
 type ringparam struct {
-	cmd                  uint32
-	rx_max_pending       uint32
-	rx_mini_max_pending  uint32
-	rx_jumbo_max_pending uint32
-	tx_max_pending       uint32
-	rx_pending           uint32
-	rx_mini_pending      uint32
-	rx_jumbo_pending     uint32
-	tx_pending           uint32
+	cmd               uint32
+	rxMaxPending      uint32
+	rxMiniMaxPending  uint32
+	rxJumboMaxPending uint32
+	txMaxPending      uint32
+	rxPending         uint32
+	rxMiniPending     uint32
+	rxJumboPending    uint32
+	txPending         uint32
 }
 
 func networkDeviceType(name string) networkType {
 	dat, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/type", name))
 	if err != nil {
-		return DEVTYPE_UNKOWN
+		return devtypeUnknown
 	}
 
 	s := strings.TrimSpace(string(dat))
 	switch s {
 	case deviceNet:
-		return DEVTYPE_NET
+		return devtypeNet
 	case deviceLocal:
-		return DEVTYPE_LOCALHOST
+		return devtypeLocalhost
 	default:
-		return DEVTYPE_UNKOWN
+		return devtypeUnknown
 	}
 
 }
 
 func ioctl(ifc string, data uintptr) error {
 
-	var name [IFNAMSIZ]byte
+	var name [ifNameSz]byte
 	copy(name[:], []byte(ifc))
 
 	ifr := ifreq{
-		ifr_name: name,
-		ifr_data: data,
+		ifrName: name,
+		ifrData: data,
 	}
 
 	fd, _ := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
 	defer unix.Close(fd)
 
-	_, _, ep := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), SIOCETHTOOL,
+	_, _, ep := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), siocETHTOOL,
 		uintptr(unsafe.Pointer(&ifr)))
 	if ep != 0 {
 		return ep
@@ -146,14 +147,14 @@ func checkRingParams(ringparam ringparam) bool {
 
 	needsUpdate := false
 
-	if ringparam.rx_max_pending > ringparam.rx_pending {
+	if ringparam.rxMaxPending > ringparam.rxPending {
 		needsUpdate = true
-		ringparam.rx_pending = ringparam.rx_max_pending
+		ringparam.rxPending = ringparam.rxMaxPending
 	}
 
-	if ringparam.tx_max_pending > ringparam.tx_pending {
+	if ringparam.txMaxPending > ringparam.txPending {
 		needsUpdate = true
-		ringparam.tx_pending = ringparam.tx_max_pending
+		ringparam.txPending = ringparam.txMaxPending
 	}
 
 	return needsUpdate
@@ -191,7 +192,7 @@ func configQueues(ifcs map[string]*ifc) {
 
 		// needsUpdate := false
 		channels := channels{
-			cmd: ETHTOOL_GCHANNELS,
+			cmd: ethtoolGCHANNELS,
 		}
 
 		if err := ioctl(ifc.name, uintptr(unsafe.Pointer(&channels))); err != nil {
@@ -201,13 +202,13 @@ func configQueues(ifcs map[string]*ifc) {
 		// if update required we send one. errors can not be handled
 		if checkChannels(channels) {
 			logDebug("updating network queues")
-			channels.cmd = ETHTOOL_SCHANNELS
+			channels.cmd = ethtoolSCHANNELS
 			ioctl(ifc.name, uintptr(unsafe.Pointer(&channels)))
 		}
 
 	ringconfig:
 		ringparam := ringparam{
-			cmd: ETHTOOL_GRINGPARAM,
+			cmd: ethtoolGRINGPARAM,
 		}
 
 		if err := ioctl(ifc.name, uintptr(unsafe.Pointer(&ringparam))); err != nil {
@@ -216,7 +217,7 @@ func configQueues(ifcs map[string]*ifc) {
 
 		if checkRingParams(ringparam) {
 			logDebug("updating network ringparams")
-			ringparam.cmd = ETHTOOL_SRINGPARAM
+			ringparam.cmd = ethtoolSRINGPARAM
 			ioctl(ifc.name, uintptr(unsafe.Pointer(&ringparam)))
 		}
 
@@ -391,12 +392,12 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 	// if ack is not successful we panic later
 	router := dhcpv4.GetIP(dhcpv4.OptionRouter, offer.Options)
 	mask := dhcpv4.GetIP(dhcpv4.OptionSubnetMask, offer.Options)
-	dhcpServerIp := dhcpv4.GetIP(dhcpv4.OptionServerIdentifier, offer.Options)
+	dhcpServerIP := dhcpv4.GetIP(dhcpv4.OptionServerIdentifier, offer.Options)
 
 	if len(offer.Options.Get(dhcpv4.GenericOptionCode(azureEndpointServerOption))) > 0 {
-		v.hypervisorInfo.cloud = CP_AZURE
+		v.hypervisorInfo.cloud = cpAzure
 	} else {
-		v.hypervisorInfo.cloud = CP_NONE
+		v.hypervisorInfo.cloud = cpNone
 	}
 
 	configInterface(ifc, offer.YourIPAddr, mask, router)
@@ -407,7 +408,7 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 		renew = int(binary.BigEndian.Uint32(rv))
 	}
 
-	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", dhcpServerIp.String(), dhcpv4.ServerPort))
+	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", dhcpServerIP.String(), dhcpv4.ServerPort))
 	if err != nil {
 		logError("can not parse server address: %s", err.Error())
 		return err
@@ -425,7 +426,9 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 
 	// add DNS
 	v.dns = append(v.dns, offer.DNS()...)
-	v.ntp = append(v.ntp, offer.NTPServers()...)
+
+	// XXX: ntp, at the moment we only use provided ntp servers
+	// we should read from dhcp as well
 
 	go func(name string, client *client4.Client, offer *dhcpv4.DHCPv4) {
 
@@ -440,7 +443,7 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 
 		for {
 			<-time.After(time.Duration(renew) * time.Second)
-			logDebug("renew with %v", dhcpServerIp)
+			logDebug("renew with %v", dhcpServerIP)
 			renewDHCP(name, client, offer, cid, xid)
 		}
 
@@ -467,7 +470,7 @@ func setTSOValues(name string, val byte) {
 
 	logDebug("setting tso to %d", val)
 
-	var nameIn [IFNAMSIZ]byte
+	var nameIn [ifNameSz]byte
 	copy(nameIn[:], []byte(name))
 
 	for _, attr := range tsoAttrs {
@@ -502,16 +505,24 @@ func startLink(name string) (netlink.Link, error) {
 
 }
 
-func handleNetworkLink(interf *ifc, ifcg IfaceCfg, v *Vinitd, errCh chan error, wg *sync.WaitGroup) {
+func handleNetworkLink(interf *ifc, ifcg vcfg.NetworkInterface, v *Vinitd, errCh chan error, wg *sync.WaitGroup) {
 
-	if ifcg.IP != 0 {
-		// static ip
-		ip := networkInt2IP(ifcg.IP)
-		mask := networkInt2IP(ifcg.Mask)
-		gw := networkInt2IP(ifcg.Gateway)
+	if ifcg.IP != "dhcp" && ifcg.IP != "" {
 
-		configInterface(interf, ip, mask, gw)
-		wg.Done()
+		go func() {
+			// static ip
+			ip := net.ParseIP(ifcg.IP)
+			mask := net.ParseIP(ifcg.Mask)
+			gw := net.ParseIP(ifcg.Gateway)
+
+			if ip == nil || mask == nil || gw == nil {
+				errCh <- fmt.Errorf("ip, mask or gateway is not valid")
+				wg.Done()
+				return
+			}
+			configInterface(interf, ip, mask, gw)
+			wg.Done()
+		}()
 
 	} else {
 
@@ -528,8 +539,9 @@ func handleNetworkLink(interf *ifc, ifcg IfaceCfg, v *Vinitd, errCh chan error, 
 }
 
 // logFunc is getting passed here so it can be easier to test the output in the Go tests
-func handleNetworkTCPDump(interf *ifc, ifcg IfaceCfg, errCh chan error, wg *sync.WaitGroup, logFunc func(format string, values ...interface{})) {
-	if ifcg.TCPDump == 1 {
+func handleNetworkTCPDump(interf *ifc, ifcg vcfg.NetworkInterface,
+	errCh chan error, wg *sync.WaitGroup) {
+	if ifcg.TCPDUMP {
 		deviceFlag := fmt.Sprintf("--device=%s", interf.name)
 
 		// Create tcpdump command
@@ -545,7 +557,7 @@ func handleNetworkTCPDump(interf *ifc, ifcg IfaceCfg, errCh chan error, wg *sync
 		go func(scanner *bufio.Scanner) {
 			for scanner.Scan() {
 				if line := scanner.Text(); line != "" {
-					logFunc(line)
+					logAlways(line)
 				}
 			}
 		}(bufio.NewScanner(tcpdumpReader))
@@ -580,9 +592,11 @@ func (v *Vinitd) NetworkSetup() error {
 		deviceType := networkDeviceType(i.Name)
 
 		// only handle devices
-		if deviceType < DEVTYPE_NET {
+		if deviceType < devtypeNet {
 			continue
 		}
+
+		logDebug("configure %s", i.Name)
 
 		link, err := startLink(i.Name)
 		if err != nil {
@@ -590,7 +604,7 @@ func (v *Vinitd) NetworkSetup() error {
 			return err
 		}
 
-		if deviceType == DEVTYPE_LOCALHOST {
+		if deviceType == devtypeLocalhost {
 			ipnet := &net.IPNet{
 				IP:   net.IPv4(127, 0, 0, 1),
 				Mask: net.IPv4Mask(255, 0, 0, 0),
@@ -609,15 +623,19 @@ func (v *Vinitd) NetworkSetup() error {
 				netIfc: i,
 			}
 
-			ifcg := v.vcfg.Net.Iface[ic]
+			ifcg := v.vcfg.Networks[ic]
 
 			logDebug("set mtu to %d for %s", ifcg.MTU, i.Name)
 			netlink.LinkSetMTU(link, int(ifcg.MTU))
 
-			setTSOValues(i.Name, ifcg.TSOEnabled)
-
+			logDebug("disable tso: %v", ifcg.DisableTCPSegmentationOffloading)
+			if ifcg.DisableTCPSegmentationOffloading {
+				setTSOValues(i.Name, 0)
+			} else {
+				setTSOValues(i.Name, 1)
+			}
 			wg.Add(2)
-			handleNetworkTCPDump(v.ifcs[ifName], ifcg, errCh, &wg, logAlways)
+			handleNetworkTCPDump(v.ifcs[ifName], ifcg, errCh, &wg)
 			handleNetworkLink(v.ifcs[ifName], ifcg, v, errCh, &wg)
 			ic++
 		}
@@ -639,34 +657,38 @@ func (v *Vinitd) NetworkSetup() error {
 
 	logDebug("network configured")
 
-	// Sort interface keys for printing
-	ifcKeys := make([]string, 0, len(v.ifcs))
-	for k := range v.ifcs {
-		ifcKeys = append(ifcKeys, k)
-	}
+	sortAndPrint(v.ifcs)
 
-	sort.Strings(ifcKeys)
-	for _, iKey := range ifcKeys {
-		logAlways("%s ip\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].addr.IP.String())
-		logAlways("%s mask\t: %s", v.ifcs[iKey].name, net.IP(v.ifcs[iKey].addr.Mask).String())
-		logAlways("%s gateway\t: %s", v.ifcs[iKey].name, v.ifcs[iKey].gw.String())
-	}
-
-	if len(v.ifcs) == 0 {
-		logAlways("ip\t: no network devices available")
-	}
-
-	configRoutes(v.vcfg.Net.Route)
+	configRoutes(v.vcfg.Routing)
 
 	go configQueues(v.ifcs)
 
 	return nil
 }
 
+func sortAndPrint(ifcs map[string]*ifc) {
+	// Sort interface keys for printing
+	ifcKeys := make([]string, 0, len(ifcs))
+	for k := range ifcs {
+		ifcKeys = append(ifcKeys, k)
+	}
+
+	sort.Strings(ifcKeys)
+	for _, iKey := range ifcKeys {
+		logAlways("%s ip\t: %s", ifcs[iKey].name, ifcs[iKey].addr.IP.String())
+		logAlways("%s mask\t: %s", ifcs[iKey].name, net.IP(ifcs[iKey].addr.Mask).String())
+		logAlways("%s gateway\t: %s", ifcs[iKey].name, ifcs[iKey].gw.String())
+	}
+
+	if len(ifcs) == 0 {
+		logAlways("ip\t: no network devices available")
+	}
+}
+
 func setHostname(str string) (string, error) {
 
 	// substitute keys in hostname string
-	if strings.Contains(str, HOSTNAME_SALT) {
+	if strings.Contains(str, hostnameSalt) {
 		var runes = strings.Split("abcdefghijklmnopqrstuvwxyz-0123456789", "")
 
 		// already seeded here
@@ -674,7 +696,7 @@ func setHostname(str string) (string, error) {
 		for i := 0; i < 8; i++ {
 			salt += runes[mrand.Int()%len(runes)]
 		}
-		str = strings.Replace(str, HOSTNAME_SALT, salt, -1)
+		str = strings.Replace(str, hostnameSalt, salt, -1)
 	}
 
 	// convert to lowercase (uppercase letters are not valid hostname characters)
@@ -693,13 +715,14 @@ func validateHostname(hostname string) (string, error) {
 	var h string
 	printfStr := "%s%s"
 
-	elemRegex, err := regexp.Compile(`[a-z0-9-]`)
-	if err != nil {
-		return hostname, err
+	if len(hostname) == 0 {
+		return "", fmt.Errorf("hostname can not be empty")
 	}
 
-	hostname = strings.TrimPrefix(hostname, "-")
+	// no need to check for errors here
+	elemRegex, _ := regexp.Compile(`[a-z0-9-]`)
 
+	hostname = strings.TrimPrefix(hostname, "-")
 	elements := strings.Split(hostname, ".")
 
 	for k, e := range elements {
@@ -740,41 +763,40 @@ func trimString(s string, n int) string {
 	return s[:n]
 }
 
-func configRoutes(routes [16]IfaceRoute) {
+func configRoutes(routes []vcfg.Route) {
 
 	for _, r := range routes {
 
-		// empty means there is nothing coming anymore
-		if r.Dst == 0 {
-			break
+		dst, nw, err := net.ParseCIDR(r.Destination)
+		if err != nil {
+			logError("can not set route destination: %v", r.Destination)
+			continue
 		}
 
-		network := &net.IPNet{
-			IP:   networkInt2IP(r.Dst),
-			Mask: net.IPMask(networkInt2IP(r.Mask)),
+		gw := net.ParseIP(r.Gateway)
+		if gw == nil {
+			logError("gateway %s invalid", r.Gateway)
+			continue
 		}
-
-		gw := networkInt2IP(r.Gw)
-		eth := fmt.Sprintf("eth%d", r.Iface)
 
 		// check if gateway is in that network
 		// if not, we need to create a direct link
-		if !network.Contains(gw) {
-			err := addNetworkRoute4(gw, net.IPv4bcast, nil, eth, unix.RTF_UP|unix.RTF_HOST)
-			if err != nil {
-				logError("can not set route direct link: %v", err)
-				continue
-			}
+		var errNw error
+		if !nw.Contains(gw) {
+			errNw = addNetworkRoute4(gw, net.IPv4bcast, nil, r.Interface,
+				unix.RTF_UP|unix.RTF_HOST)
 		} else {
-			// addNetworkRoute4(dst, mask, gw net.IP, dev string, flags int)
-			err := addNetworkRoute4(gw, net.IP(network.Mask), nil, eth, unix.RTF_UP|unix.RTF_HOST)
-			if err != nil {
-				logError("can not set route in network: %v", err)
-				continue
-			}
+			errNw = addNetworkRoute4(gw, net.IP(nw.Mask), nil, r.Interface,
+				unix.RTF_UP|unix.RTF_HOST)
 		}
 
-		err := addNetworkRoute4(network.IP, net.IP(network.Mask), gw, eth, unix.RTF_UP|unix.RTF_STATIC|unix.RTF_GATEWAY)
+		if errNw != nil {
+			logError("can not set route direct link: %v", errNw)
+			continue
+		}
+
+		err = addNetworkRoute4(dst, net.IP(nw.Mask), gw, r.Interface,
+			unix.RTF_UP|unix.RTF_STATIC|unix.RTF_GATEWAY)
 		if err != nil {
 			logError("can not set route: %v", err)
 			continue

@@ -30,8 +30,8 @@ const (
 	defaultCWD    = "/"
 
 	getRequest      = "GET"
-	azureWireServer = "168.63.129.16"          // NOSONAR known cloud
-	metadataURL     = "http://169.254.169.254" // NOSONAR known cloud
+	azureWireServer = "168.63.129.16"
+	metadataURL     = "http://169.254.169.254"
 
 	minFds = 1024
 )
@@ -211,6 +211,7 @@ func rlimit(k int, v uint64) error {
 
 }
 
+// this seems ot be the only way to check if that instance is running on EC2
 func uuidHasEc2() bool {
 
 	uuid, err := ioutil.ReadFile("/sys/hypervisor/uuid")
@@ -513,6 +514,9 @@ func enableContainers() error {
 	return nil
 }
 
+// systemConfig does the basic configuration. It enables containers so vorteil
+// machines could run containers. Additionally it sets up shared memory and default
+// sysctls
 func systemConfig(sysctls map[string]string, hostname string, maxFds int) error {
 
 	os.Remove("/etc/ld.so.preload")

@@ -16,7 +16,7 @@ clean:
 etc:
 	go get github.com/miekg/dns
 	go get github.com/rakyll/statik
-	$(GOBINARYDIR)/statik -f -include  *.dat -p vorteil -dest internal -src assets
+	$(GOBINARYDIR)/statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
 
 .PHONY: prep
 prep: dns dhcp

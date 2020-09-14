@@ -1,7 +1,6 @@
 package vorteil
 
-// #cgo CFLAGS: -g -Wall -I/usr/include/fuse/ -I../../build/fluent-bit/include -I../../build/fluent-bit/lib/mbedtls-2.16.5/include -I../../build/fluent-bit/lib/monkey/include -I../../build/fluent-bit/lib/flb_libco  -D_FILE_OFFSET_BITS=64
-// #cgo LDFLAGS:
+// #cgo CFLAGS: -g -Wall
 // #include "helper.h"
 // #include "vmtools.h"
 // #include <stdlib.h>

@@ -101,6 +101,13 @@ func printVersion() error {
 
 func setupVtty(mode vcfg.StdoutMode) {
 
+	m := mode
+
+	// in case we are getting something unknown we go back to default
+	if m == vcfg.StdoutModeStandard || m == vcfg.StdoutModeUnknown {
+		m = vcfg.StdoutModeDefault
+	}
+
 	file, err := os.OpenFile(defaultTTY, os.O_RDWR, 0)
 	if err != nil {
 		LogFnKernel(LogLvERR, "can not open vtty: %s", err.Error())
@@ -108,7 +115,7 @@ func setupVtty(mode vcfg.StdoutMode) {
 	defer file.Close()
 
 	_, _, ep := unix.Syscall(unix.SYS_IOCTL, file.Fd(),
-		msgIOCTLOutput, uintptr(unsafe.Pointer(&mode)))
+		msgIOCTLOutput, uintptr(unsafe.Pointer(&m)))
 	if ep != 0 {
 		if err != nil {
 			LogFnKernel(LogLvERR, "can not ioctl vtty: %s", err.Error())

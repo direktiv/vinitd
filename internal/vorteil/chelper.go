@@ -1,3 +1,8 @@
+/**
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2020 vorteil.io Pty Ltd
+ */
+
 package vorteil
 
 // #cgo CFLAGS: -g -Wall
@@ -58,7 +63,7 @@ func addNetworkRoute4(dst, mask, gw net.IP, dev string, flags int) error {
 		C.int(maskNwOrder), C.int(gwNwOrder), direct, C.int(flags))
 
 	if err != 0 {
-		return fmt.Errorf("could not set route for >%s<", dev)
+		return fmt.Errorf("could not set route for %s", dev)
 	}
 
 	return nil

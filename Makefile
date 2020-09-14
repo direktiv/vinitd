@@ -5,7 +5,7 @@ endif
 
 .PHONY: all
 all: prep etc
-	export CGO_LDFLAGS="-static -w -s -Wl,--dynamic-linker=/vorteil/ld-linux-x86-64.so.2 -Wl,-rpath,/vorteil" && \
+	export CGO_LDFLAGS="-static -w -s" && \
 	go build -tags netgo -o build/vinitd cmd/vorteil.go
 
 .PHONY: clean
@@ -16,7 +16,7 @@ clean:
 etc:
 	go get github.com/miekg/dns
 	go get github.com/rakyll/statik
-	$(GOBINARYDIR)/statik -f -include  *.dat -p vorteil -dest internal -src assets
+	$(GOBINARYDIR)/statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
 
 .PHONY: prep
 prep: dns dhcp

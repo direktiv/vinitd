@@ -1,3 +1,8 @@
+/**
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2020 vorteil.io Pty Ltd
+ */
+ 
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>

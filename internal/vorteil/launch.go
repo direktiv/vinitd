@@ -580,6 +580,7 @@ func (v *Vinitd) Launch() error {
 	}
 
 	logDebug("all apps started")
+	initStatus = statusLaunched
 
 	return nil
 }

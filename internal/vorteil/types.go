@@ -23,6 +23,7 @@ type logType int
 const (
 	statusSetup    status = iota
 	statusRun      status = iota
+	statusLaunched status = iota
 	statusPoweroff status = iota
 	statusError    status = iota
 )

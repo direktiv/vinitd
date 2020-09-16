@@ -174,6 +174,11 @@ func handleExit(hdr *ProcEventHeader, progs []*program) {
 		delete(procs, hdr.ProcessTgid)
 		if len(procs) == 0 {
 
+			// if not all apps had been started we return
+			if initStatus < statusLaunched {
+				return
+			}
+
 			// check if all apps have started. they might be in bootstrap
 			for _, p := range progs {
 				if p.status == statusSetup {

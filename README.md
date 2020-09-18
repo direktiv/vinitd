@@ -60,15 +60,17 @@ Vinitd runs through four stages starting with low level tasks like setting up st
 
 ### Building
 
-This project is getting build during the bundle process of [vbundler](https://github.com/vorteil/vbundler) and [vbundler](https://github.com/vorteil/vbundler) has dedicated targets for building and updating _vinitd_ ('make dev-vinitd' in [vbundler](https://github.com/vorteil/vbundler)). This is the preferred method.
-
-Nevertheless this project can be build standalone with 'make' and 'go' installed:
+To build and test changes in vinitd it needs to be part of a bundle. To make this process easier there is a dedicated make target available to build a bundle with the newly build vinitd.
 
 ```sh
-git clone https://github.com/vorteil/vinitd
-cd vinitd
-make
+make BUNDLE=20.9.2 VERSION=88.88.1 TARGET=/tmp bundle
 ```
+
+The variables to provide are:
+
+* BUNDLE: Base used for the new bundle. Can be any bundle from vbundlerthe [releases page](https://github.com/vorteil/vbundler/releases).
+* VERSION: Version of the new bundle. Needs to have the following format XX.XX.X
+* TARGET: The target directory for the new bundle. After a successful build there will be a file _`kernel-$VERSION`_ in that directory.
 
 ### License
 

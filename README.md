@@ -8,13 +8,17 @@
 </p>
 <hr/>
 
-Vinitd is the init process for [vorteil.io micro virtual machines](https://github.com/vorteil/vorteil). It manages the configuration of the environment and the applications on the instance. For more documentations: [TODO DOCS]()
+Vinitd is the init process for [vorteil.io micro virtual machines](https://github.com/vorteil/vorteil). It manages the configuration of the environment and the applications on the instance. For more documentation:
+
+* The [Vorteil.io tools](https://github.com/vorteil/vorteil) project.
+* The Vorteil [documentation](https://docs.vorteil.io/).
+* The free Vorteil [apps repository](http://apps.vorteil.io/).
+* The Vorteil [blog](https://blog.vorteil.io/).
+* The [Godoc](https://godoc.org/github.com/vorteil/vorteil) library documentation.
 
 ### Architecture
 
 Vinitd is a small but feature-complete init for small virtual machines which can be found at _/vorteil/vinitd_ on vorteil images. It is a purpose-built and and requires a specific disk-layout build by [vorteil's tools](https://github.com/vorteil/vorteil).
-
-#### Disk Layout
 
 #### Stages
 

@@ -11,7 +11,7 @@ all: prep etc build
 .PHONY: build
 build:
 	export CGO_LDFLAGS="-static -w -s" && \
-	go build -tags netgo -o build/vinitd cmd/vorteil.go
+	go build -tags osusergo,netgo -o build/vinitd cmd/vorteil.go
 
 .PHONY: clean
 clean:

@@ -51,6 +51,7 @@ func setupMountOptions(diskname string) error {
 	var (
 		dev, path, fstype, opts string
 		a, b                    int
+		err                     error
 	)
 
 	// it is always the second partition
@@ -94,11 +95,13 @@ func setupMountOptions(diskname string) error {
 		}
 	}
 
-	if s.Err() != nil {
-		return fmt.Errorf("could not detect filesystem type: %s", err.Error())
-	}
+	err = fmt.Errorf("can not find root filesystem")
 
-	return fmt.Errorf("can not find root filesystem")
+	if s.Err() != nil {
+		err = fmt.Errorf("could not detect filesystem type: %s", err.Error())
+	}
+	return err
+
 }
 
 func (v *Vinitd) PreSetup() error {

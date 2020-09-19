@@ -10,6 +10,6 @@ go:
 #   - snyk test
 
 script:
-  - make
+  - make all
   - ls
   - go test -race -coverprofile=coverage.txt -covermode=atomic ./...

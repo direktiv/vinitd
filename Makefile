@@ -19,6 +19,7 @@ clean:
 
 .PHONY: etc
 etc:
+	echo "creating statik file"
 	go get github.com/miekg/dns
 	go get github.com/rakyll/statik
 	$(GOBINARYDIR)/statik -f -include  *.dat -p vorteil -dest internal -src assets/etc

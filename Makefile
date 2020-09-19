@@ -1,6 +1,6 @@
 # statik needs the go binary directory
 ifndef GOBINARYDIR
-	GOBINARYDIR := ~/go/bin
+	GOBINARYDIR := ~/go/bin/
 endif
 
 BUNDLER   := 'master'
@@ -21,8 +21,10 @@ clean:
 etc:
 	echo "creating statik file"
 	go get github.com/miekg/dns
-	go get github.com/rakyll/statik
-	$(GOBINARYDIR)/statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
+	go install github.com/rakyll/statik
+	find ~ | grep statik
+	echo "creating statik file2"
+	$(GOBINARYDIR)statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
 
 .PHONY: prep
 prep: dns dhcp

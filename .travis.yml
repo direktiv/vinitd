@@ -7,9 +7,8 @@ go:
 
 before_install:
   - npm install -g snyk
-  - snyk test
 
 script:
   - make all
-  - ls
+  - snyk test
   - go test -race -coverprofile=coverage.txt -covermode=atomic ./...

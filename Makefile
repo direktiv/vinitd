@@ -22,8 +22,6 @@ etc:
 	echo "creating statik file"
 	go get github.com/miekg/dns
 	go install github.com/rakyll/statik
-	find ~ | grep statik
-	echo "creating statik file2"
 	$(GOBINARYDIR)statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
 
 .PHONY: prep

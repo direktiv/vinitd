@@ -5,9 +5,9 @@ language: go
 go:
   - 1.15
 
-# before_install:
-#   - npm install -g snyk
-#   - snyk test
+before_install:
+  - npm install -g snyk
+  - snyk test
 
 script:
   - make all

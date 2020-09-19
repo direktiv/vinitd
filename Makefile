@@ -24,10 +24,11 @@ etc:
 	$(GOBINARYDIR)/statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
 
 .PHONY: prep
-	prep: dns dhcp
+prep: dns dhcp
 
 .PHONY: build-bundler
 build-bundler:
+	echo "checking bundler"
 	@if [ ! -d "build/bundler" ]; then \
 	    echo 'downloading bundler'; \
 			cd build/ && git clone --single-branch --branch=${BUNDLER} https://github.com/vorteil/bundler.git --depth 1; \
@@ -55,6 +56,7 @@ bundle: build-bundler build
 
 .PHONY: dns
 dns:
+	echo "checking dns"
 	@if [ ! -d build/dnsproxy-go ]; 													\
 		then																	\
 			 mkdir -p build && cd build &&	\
@@ -63,6 +65,7 @@ dns:
 
 .PHONY: dhcp
 dhcp:
+	echo "checking dhcp"
 	@if [ ! -d build/dhcp ]; 													\
 		then																	\
 			 mkdir -p build && cd build &&	\

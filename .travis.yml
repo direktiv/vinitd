@@ -5,10 +5,5 @@ language: go
 go:
   - 1.15
 
-before_install:
-  - npm install -g snyk
-
 script:
   - make all
-  - snyk test
-  - go test -race -coverprofile=coverage.txt -covermode=atomic ./...

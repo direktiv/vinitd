@@ -108,6 +108,13 @@ type ringparam struct {
 	txPending         uint32
 }
 
+type clientdhcp struct {
+	cid    []byte
+	client *client4.Client
+	xid    dhcpv4.TransactionID
+	offer  *dhcpv4.DHCPv4
+}
+
 func networkDeviceType(name string) networkType {
 	dat, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/type", name))
 	if err != nil {
@@ -229,8 +236,7 @@ func configQueues(ifcs map[string]*ifc) {
 	}
 }
 
-func renewDHCP(name string, client *client4.Client,
-	offer *dhcpv4.DHCPv4, cid []byte, xid dhcpv4.TransactionID) (*dhcpv4.DHCPv4, error) {
+func renewDHCP(name string, cinfo *clientdhcp) (*dhcpv4.DHCPv4, error) {
 
 	rfd, err := client4.MakeListeningSocket(name)
 	if err != nil {
@@ -244,9 +250,9 @@ func renewDHCP(name string, client *client4.Client,
 
 	defer closeFds(sfd, rfd)
 
-	request, err := dhcpv4.NewRequestFromOffer(offer,
-		dhcpv4.WithTransactionID(xid),
-		dhcpv4.WithOption(dhcpv4.OptClientIdentifier(cid)),
+	request, err := dhcpv4.NewRequestFromOffer(cinfo.offer,
+		dhcpv4.WithTransactionID(cinfo.xid),
+		dhcpv4.WithOption(dhcpv4.OptClientIdentifier(cinfo.cid)),
 		dhcpv4.WithBroadcast(true),
 		dhcpv4.WithRequestedOptions(dhcpv4.OptionRenewTimeValue, dhcpv4.OptionNTPServers,
 			dhcpv4.GenericOptionCode(azureEndpointServerOption)))
@@ -255,12 +261,8 @@ func renewDHCP(name string, client *client4.Client,
 		return nil, err
 	}
 
-	ack, err := client.SendReceive(sfd, rfd, request, dhcpv4.MessageTypeAck)
-	if err != nil {
-		return nil, err
-	}
+	return cinfo.client.SendReceive(sfd, rfd, request, dhcpv4.MessageTypeAck)
 
-	return ack, nil
 }
 
 func closeFds(sfd, rfd int) {
@@ -439,8 +441,16 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 
 		offer.SetUnicast()
 
+		// create client info
+		clientInfo := &clientdhcp{
+			cid:    cid,
+			client: client,
+			xid:    xid,
+			offer:  offer,
+		}
+
 		// this is getting the ack,if not we panic because we are using that IP already
-		ack, err := renewDHCP(name, client, offer, cid, xid)
+		ack, err := renewDHCP(name, clientInfo)
 		if err != nil {
 			logWarn("can not ack IP address: %s", err.Error())
 		}
@@ -449,7 +459,7 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 		for {
 			<-time.After(time.Duration(renew) * time.Second)
 			logDebug("renew with %v", dhcpServerIP)
-			renewDHCP(name, client, offer, cid, xid)
+			renewDHCP(name, clientInfo)
 		}
 
 	}(ifc.name, client, offer)
@@ -510,7 +520,7 @@ func startLink(name string) (netlink.Link, error) {
 
 }
 
-func handleNetworkLink(interf *ifc, ifcg vcfg.NetworkInterface, v *Vinitd, errCh chan error, wg *sync.WaitGroup) {
+func (v *Vinitd) handleNetworkLink(interf *ifc, ifcg vcfg.NetworkInterface, errCh chan error, wg *sync.WaitGroup) {
 
 	if ifcg.IP != "dhcp" && ifcg.IP != "" {
 
@@ -641,7 +651,7 @@ func (v *Vinitd) networkSetup() error {
 			}
 			wg.Add(2)
 			handleNetworkTCPDump(v.ifcs[ifName], ifcg, errCh, &wg)
-			handleNetworkLink(v.ifcs[ifName], ifcg, v, errCh, &wg)
+			v.handleNetworkLink(v.ifcs[ifName], ifcg, errCh, &wg)
 			ic++
 		}
 	}

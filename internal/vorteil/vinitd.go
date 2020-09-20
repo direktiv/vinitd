@@ -104,6 +104,8 @@ func setupMountOptions(diskname string) error {
 
 }
 
+// PreSetup prepares directories, grows disk to max size and remounts disk
+// with new args
 func (v *Vinitd) PreSetup() error {
 
 	setupVtty(0)
@@ -139,6 +141,8 @@ func (v *Vinitd) PreSetup() error {
 
 }
 
+// Setup is the main routine during preparing a vorteil machine.
+// It prepares stdout, poweroff events, network and basic system configuration
 func (v *Vinitd) Setup() error {
 
 	err := v.readVCFG(v.diskname)
@@ -177,7 +181,7 @@ func (v *Vinitd) Setup() error {
 	wg.Add(3)
 
 	go func() {
-		err = v.NetworkSetup()
+		err = v.networkSetup()
 		if err != nil {
 			logError("error setting up network: %s", err.Error())
 			errors <- err
@@ -214,7 +218,7 @@ func (v *Vinitd) Setup() error {
 		break
 	case err := <-errors:
 		close(errors)
-		SystemPanic("sytem setup failed: %s", err.Error())
+		SystemPanic("system setup failed: %s", err.Error())
 	}
 
 	for _, p := range v.vcfg.Programs {
@@ -226,6 +230,7 @@ func (v *Vinitd) Setup() error {
 	return nil
 }
 
+// PostSetup finishes tasks which need network access which is DNS, NFS and NTP
 func (v *Vinitd) PostSetup() error {
 
 	// start a DNS on 127.0.0.1
@@ -299,7 +304,7 @@ func (v *Vinitd) PostSetup() error {
 		break
 	case err := <-errors:
 		close(errors)
-		SystemPanic("sytem post-setup failed: %s", err.Error())
+		SystemPanic("system post-setup failed: %s", err.Error())
 	}
 
 	logDebug("post setup finished successfully")

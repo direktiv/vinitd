@@ -95,6 +95,32 @@ func bootDisk() (string, error) {
 
 }
 
+func openVCFGFile(disk string) (*os.File, error) {
+
+	var (
+		f   *os.File
+		err error
+		off int64
+	)
+
+	f, err = os.Open(disk)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	off, err = f.Seek(vcfgOffset, io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+
+	if off != vcfgOffset {
+		err = fmt.Errorf("can not read vcfg, wrong offset")
+	}
+
+	return f, err
+}
+
 /* readVCFG reads the the configuration for the VM from disk into the
    configuration struct */
 func (v *Vinitd) readVCFG(disk string) error {
@@ -104,21 +130,12 @@ func (v *Vinitd) readVCFG(disk string) error {
 	var (
 		blc  vimg.BootloaderConfig
 		vcfg vcfg.VCFG
+		err  error
 	)
 
-	f, err := os.Open(disk)
+	f, err := openVCFGFile(disk)
 	if err != nil {
 		return err
-	}
-	defer f.Close()
-
-	off, err := f.Seek(vcfgOffset, io.SeekStart)
-	if err != nil {
-		return err
-	}
-
-	if off != vcfgOffset {
-		return fmt.Errorf("can not read vcfg, wrong offset")
 	}
 
 	// var conf PersistedConf
@@ -445,34 +462,42 @@ func fetchCloudMetadata(v *Vinitd) {
 func hypervisorGuess(v *Vinitd, bios string) (hypervisor, cloud) {
 
 	logDebug("guessing hypervisor: %s", strings.TrimSpace(bios))
+	hv := hvUnknown
+	cloud := cpUnknown
 
 	if strings.HasPrefix(bios, "SeaBIOS") {
-		return hvKVM, cpNone
+		hv = hvKVM
+		cloud = cpNone
 	} else if strings.HasPrefix(bios, "innotek GmbH") {
-		return hvVBox, cpNone
+		hv = hvVBox
+		cloud = cpNone
 	} else if strings.HasPrefix(bios, "Phoenix Technologies LTD") {
 		// start guestinfo vmtools
 		startVMTools(len(v.ifcs), v.hostname)
-		return hvVMWare, cpNone
+		hv = hvVMWare
+		cloud = cpNone
 	} else if strings.HasPrefix(bios, "Google") {
-		return hvKVM, cpGCP
+		hv = hvKVM
+		cloud = cpGCP
 	} else if strings.HasPrefix(bios, "Amazon") {
-		return hvKVM, cpEC2
-	} else if strings.HasPrefix(bios, "Xen") {
-		if uuidHasEc2() {
-			return hvXen, cpEC2
-		}
-		return hvXen, cpNone
+		hv = hvKVM
+		cloud = cpEC2
+	} else if strings.HasPrefix(bios, "Xen") && !uuidHasEc2() {
+		hv = hvXen
+		cloud = cpNone
+	} else if strings.HasPrefix(bios, "Xen") && uuidHasEc2() {
+		hv = hvXen
+		cloud = cpEC2
 	} else if strings.HasPrefix(bios, "American Megatrends Inc.") {
 		// the cloud value has been set by DHCP already, option 245
-		cp := cpNone
+		cloud = cpNone
 		if v.hypervisorInfo.cloud == cpAzure {
-			cp = cpAzure
+			cloud = cpAzure
 		}
-		return hvHyperV, cp
+		hv = hvHyperV
 	}
 
-	return hvUnknown, cpUnknown
+	return hv, cloud
 
 }
 

@@ -48,7 +48,7 @@ func pickFromEnv(env string, p vcfg.Program) string {
 // func calculatePath(p vcfg.Program) string {
 func calculatePath(ppath string, p vcfg.Program) string {
 
-	// nothing to caluclate if absolute
+	// nothing to calculate if absolute
 	if path.IsAbs(ppath) {
 		return ppath
 	}
@@ -276,7 +276,7 @@ func bootstrapWaitForPort(args []string, p *program) {
 	wg.Wait()
 }
 
-// listenForPort listens for port in a loop returns nothing but resolves wait group when function succesfully dials port
+// listenForPort listens for port in a loop returns nothing but resolves wait group when function successfully dials port
 func listenForPort(addrToCheck string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	count := 0
@@ -478,7 +478,7 @@ func (v *Vinitd) launchProgram(np *program) error {
 
 	p := np.vcfgProg
 
-	// get envs and substitue with cloud args
+	// get envs and substitute with cloud args
 	pEnvs := envs(p.Env, v.hypervisorInfo.envs)
 	np.env = pEnvs
 
@@ -541,6 +541,7 @@ func reapProcs() {
 
 }
 
+// Launch starts all applications in vcfg
 func (v *Vinitd) Launch() error {
 
 	var wg sync.WaitGroup

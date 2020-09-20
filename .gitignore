@@ -15,3 +15,5 @@ build/
 internal/vorteil/statik.go
 
 .scanner*
+
+test/dl

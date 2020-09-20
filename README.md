@@ -8,7 +8,9 @@
 </p>
 <hr/>
 
-Vinitd is the init process for [vorteil.io micro virtual machines](https://github.com/vorteil/vorteil). It manages the configuration of the environment and the applications on the instance. For more documentation:
+[![Build Status](https://travis-ci.org/vorteil/vinitd.svg?branch=master)](https://travis-ci.org/vorteil/vinitd) <a href="https://codeclimate.com/github/vorteil/vinitd/maintainability"><img src="https://api.codeclimate.com/v1/badges/4f33b7b5dc76ba2d26ae/maintainability" /></a> [![Go Report Card](https://goreportcard.com/badge/github.com/vorteil/vinitd)](https://goreportcard.com/report/github.com/vorteil/vinitd)
+
+Vinitd is the init process for [vorteil.io micro virtual machines](https://github.com/vorteil/vorteil). It manages the configuration of the environment and the applications on the instance. For more information:
 
 * The [Vorteil.io tools](https://github.com/vorteil/vorteil) project.
 * The Vorteil [documentation](https://docs.vorteil.io/).

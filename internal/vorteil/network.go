@@ -577,7 +577,7 @@ func handleNetworkTCPDump(interf *ifc, ifcg vcfg.NetworkInterface,
 	wg.Done()
 }
 
-func (v *Vinitd) NetworkSetup() error {
+func (v *Vinitd) networkSetup() error {
 
 	ifaces, err := net.Interfaces()
 	if err != nil {

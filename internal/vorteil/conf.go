@@ -165,7 +165,6 @@ func openVCFGFile(disk string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 
 	off, err = f.Seek(vcfgOffset, io.SeekStart)
 	if err != nil {
@@ -195,6 +194,7 @@ func (v *Vinitd) readVCFG(disk string) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	// var conf PersistedConf
 	err = binary.Read(f, binary.LittleEndian, &blc)

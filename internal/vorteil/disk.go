@@ -176,13 +176,13 @@ func growDisk(f *os.File, p string) error {
 		return err
 	}
 
-	blocks := (gptGrower.partitionEntry.LastLBA - gptGrower.partitionEntry.FirstLBA) * SECTOR_SIZE / uint64(s1.Bsize)
+	blocks := (gptGrower.partitionEntry.LastLBA - gptGrower.partitionEntry.FirstLBA) * sectorSize / uint64(s1.Bsize)
 
 	arg := &unix.BlkpgIoctlArg{
 		Op: unix.BLKPG_RESIZE_PARTITION,
 		Data: (*byte)(unsafe.Pointer(&unix.BlkpgPartition{
-			Start:  int64(gptGrower.partitionEntry.FirstLBA * SECTOR_SIZE),                                      // in bytes
-			Length: int64((gptGrower.partitionEntry.LastLBA - gptGrower.partitionEntry.FirstLBA) * SECTOR_SIZE), // in bytes
+			Start:  int64(gptGrower.partitionEntry.FirstLBA * sectorSize),                                      // in bytes
+			Length: int64((gptGrower.partitionEntry.LastLBA - gptGrower.partitionEntry.FirstLBA) * sectorSize), // in bytes
 			Pno:    int32(2),
 		})),
 	}
@@ -192,7 +192,7 @@ func growDisk(f *os.File, p string) error {
 	}
 
 	// detect fs type
-	format, err := detectFormat(f, p, int64(gptGrower.partitionEntry.FirstLBA*SECTOR_SIZE))
+	format, err := detectFormat(f, p, int64(gptGrower.partitionEntry.FirstLBA*sectorSize))
 	if err != nil {
 		return err
 	}

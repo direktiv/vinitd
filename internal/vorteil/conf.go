@@ -46,6 +46,11 @@ type cloudReq struct {
 	header, query map[string]string
 }
 
+type sysVal struct {
+	name  string
+	value int
+}
+
 var (
 	azureReq = cloudReq{
 		server:        metadataURL,
@@ -82,6 +87,59 @@ var (
 			"Host":     "metadata.ec2.internal",
 			"Metadata": "true",
 		},
+	}
+
+	vals = []sysVal{
+		{"vm/max_map_count", 1048575},
+		{"vm/swappiness", 0},
+		{"kernel/randomize_va_space", 2},
+		{"net/ipv4/tcp_no_metrics_save", 1},
+		{"net/core/netdev_max_backlog", 5000},
+		{"vm/dirty_background_ratio", 20},
+		{"vm/dirty_ratio", 25},
+		{"fs/protected_hardlinks", 1},
+		{"fs/protected_symlinks", 1},
+		{"fs/suid_dumpable", 1},
+		{"kernel/kptr_restrict", 1},
+		{"kernel/dmesg_restrict", 1},
+		{"kernel/unprivileged_bpf_disabled", 1},
+		{"net/ipv4/conf/all/bootp_relay", 0},
+
+		{"net/ipv4/tcp_syncookies", 1},
+		{"net/ipv4/tcp_syn_retries", 2},
+		{"net/ipv4/tcp_synack_retries", 2},
+		{"net/ipv4/tcp_max_syn_backlog", 4096},
+
+		{"net/ipv4/ip_forward", 0},
+		{"net/ipv4/conf/all/forwarding", 0},
+		{"net/ipv4/conf/default/forwarding", 0},
+		{"net/ipv6/conf/all/forwarding", 0},
+		{"net/ipv6/conf/default/forwarding", 0},
+
+		{"net/ipv4/conf/all/rp_filter", 1},
+		{"net/ipv4/conf/default/rp_filter", 1},
+
+		{"net/ipv4/conf/all/accept_redirects", 0},
+		{"net/ipv4/conf/default/accept_redirects", 0},
+		{"net/ipv4/conf/all/secure_redirects", 0},
+		{"net/ipv4/conf/default/secure_redirects", 0},
+		{"net/ipv6/conf/all/accept_redirects", 0},
+		{"net/ipv6/conf/default/accept_redirects", 0},
+
+		{"net/ipv4/conf/all/accept_source_route", 0},
+		{"net/ipv4/conf/default/accept_source_route", 0},
+		{"net/ipv6/conf/all/accept_source_route", 0},
+		{"net/ipv6/conf/default/accept_source_route", 0},
+
+		{"net/ipv4/conf/all/proxy_arp", 0},
+		{"net/ipv4/conf/all/arp_ignore", 1},
+		{"net/ipv4/conf/all/arp_announce", 2},
+
+		{"net/ipv4/conf/default/log_martians", 0},
+		{"net/ipv4/conf/all/log_martians", 0},
+
+		{"net/ipv4/icmp_ignore_bogus_error_responses", 0},
+		{"net/ipv4/icmp_echo_ignore_broadcasts", 1},
 	}
 )
 
@@ -276,8 +334,7 @@ func updateHealthAzure() {
 	if resp.StatusCode == 200 && err == nil {
 
 		var (
-			cid string
-			iid string
+			cid, iid string
 		)
 
 		re := regexp.MustCompile(`<ContainerId>([^<]*)</ContainerId>`)
@@ -314,7 +371,6 @@ func updateHealthAzure() {
 			logError("error updating machine status: %s", err.Error())
 			return
 		}
-
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
@@ -488,13 +544,13 @@ func hypervisorGuess(v *Vinitd, bios string) (hypervisor, cloud) {
 	} else if strings.HasPrefix(bios, "Xen") && uuidHasEc2() {
 		hv = hvXen
 		cloud = cpEC2
-	} else if strings.HasPrefix(bios, "American Megatrends Inc.") {
-		// the cloud value has been set by DHCP already, option 245
-		cloud = cpNone
-		if v.hypervisorInfo.cloud == cpAzure {
-			cloud = cpAzure
-		}
+	} else if strings.HasPrefix(bios, "American Megatrends Inc.") && v.hypervisorInfo.cloud != cpAzure {
 		hv = hvHyperV
+		cloud = cpNone
+	} else if strings.HasPrefix(bios, "American Megatrends Inc.") && v.hypervisorInfo.cloud == cpAzure {
+		// the cloud value has been set by DHCP already, option 245
+		hv = hvHyperV
+		cloud = cpAzure
 	}
 
 	return hv, cloud
@@ -568,64 +624,8 @@ func systemConfig(sysctls map[string]string, hostname string, maxFds int) error 
 
 	rlimit(unix.RLIMIT_NOFILE, uint64(maxFds*2))
 
-	type sysVal struct {
-		name  string
-		value int
-	}
-
-	vals := []sysVal{
-		{"fs/file-max", int(maxFds)},
-		{"vm/max_map_count", 1048575},
-		{"vm/swappiness", 0},
-		{"kernel/randomize_va_space", 2},
-		{"net/ipv4/tcp_no_metrics_save", 1},
-		{"net/core/netdev_max_backlog", 5000},
-		{"vm/dirty_background_ratio", 20},
-		{"vm/dirty_ratio", 25},
-		{"fs/protected_hardlinks", 1},
-		{"fs/protected_symlinks", 1},
-		{"fs/suid_dumpable", 1},
-		{"kernel/kptr_restrict", 1},
-		{"kernel/dmesg_restrict", 1},
-		{"kernel/unprivileged_bpf_disabled", 1},
-		{"net/ipv4/conf/all/bootp_relay", 0},
-
-		{"net/ipv4/tcp_syncookies", 1},
-		{"net/ipv4/tcp_syn_retries", 2},
-		{"net/ipv4/tcp_synack_retries", 2},
-		{"net/ipv4/tcp_max_syn_backlog", 4096},
-
-		{"net/ipv4/ip_forward", 0},
-		{"net/ipv4/conf/all/forwarding", 0},
-		{"net/ipv4/conf/default/forwarding", 0},
-		{"net/ipv6/conf/all/forwarding", 0},
-		{"net/ipv6/conf/default/forwarding", 0},
-
-		{"net/ipv4/conf/all/rp_filter", 1},
-		{"net/ipv4/conf/default/rp_filter", 1},
-
-		{"net/ipv4/conf/all/accept_redirects", 0},
-		{"net/ipv4/conf/default/accept_redirects", 0},
-		{"net/ipv4/conf/all/secure_redirects", 0},
-		{"net/ipv4/conf/default/secure_redirects", 0},
-		{"net/ipv6/conf/all/accept_redirects", 0},
-		{"net/ipv6/conf/default/accept_redirects", 0},
-
-		{"net/ipv4/conf/all/accept_source_route", 0},
-		{"net/ipv4/conf/default/accept_source_route", 0},
-		{"net/ipv6/conf/all/accept_source_route", 0},
-		{"net/ipv6/conf/default/accept_source_route", 0},
-
-		{"net/ipv4/conf/all/proxy_arp", 0},
-		{"net/ipv4/conf/all/arp_ignore", 1},
-		{"net/ipv4/conf/all/arp_announce", 2},
-
-		{"net/ipv4/conf/default/log_martians", 0},
-		{"net/ipv4/conf/all/log_martians", 0},
-
-		{"net/ipv4/icmp_ignore_bogus_error_responses", 0},
-		{"net/ipv4/icmp_echo_ignore_broadcasts", 1},
-	}
+	// add dynamix fd number to sysval
+	vals = append(vals, sysVal{"fs/file-max", int(maxFds)})
 
 	for _, s := range vals {
 		err := procsys(s.name, fmt.Sprintf("%d", s.value))

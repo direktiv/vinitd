@@ -13,6 +13,12 @@ import (
 	"os"
 )
 
+var (
+	newBackupGPTLocation int64
+	gpt1, gpt2           *GPTHeader
+	totalSectors         uint32
+)
+
 type gptModifier struct {
 	f    *os.File
 	p    string
@@ -57,13 +63,13 @@ func newGPTModifier(args *newGPTModifierArgs) (*gptModifier, error) {
 func (m *gptModifier) addPartition() error {
 
 	// pe := new(PartitionEntry)
-	tableOffset := int64(SECTOR_SIZE * 2)
+	tableOffset := int64(sectorSize * 2)
 	var partitionEntry *PartitionEntry
 	var peOffset int64
 
 	var err error
 
-	_, err = m.f.Seek(2*SECTOR_SIZE, 0)
+	_, err = m.f.Seek(2*sectorSize, 0)
 	if err != nil {
 		return err
 	}
@@ -142,7 +148,7 @@ func (m *gptModifier) grow() error {
 // UpdateMBR ..
 func (m *gptModifier) updateMBR() error {
 
-	b := make([]byte, SECTOR_SIZE)
+	b := make([]byte, sectorSize)
 	_, err := m.f.ReadAt(b, 0)
 	if err != nil {
 		return err
@@ -154,7 +160,7 @@ func (m *gptModifier) updateMBR() error {
 		return err
 	}
 
-	mbr.NumberOfSectors = uint32(m.size/SECTOR_SIZE) - 1
+	mbr.NumberOfSectors = uint32(m.size/sectorSize) - 1
 
 	_, err = m.f.Seek(0, 0)
 	if err != nil {
@@ -172,7 +178,7 @@ func (m *gptModifier) updateMBR() error {
 // GetGPTHeader ..
 func (m *gptModifier) getGPTHeader() (*GPTHeader, error) {
 
-	_, err := m.f.Seek(SECTOR_SIZE, 0)
+	_, err := m.f.Seek(sectorSize, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +193,7 @@ func (m *gptModifier) getGPTHeader() (*GPTHeader, error) {
 }
 
 func (m *gptModifier) lastUsableLBA() uint64 {
-	return uint64(m.size/SECTOR_SIZE - 34)
+	return uint64(m.size/sectorSize - 34)
 }
 
 // UpdatePrimaryGPTHeader ..
@@ -197,13 +203,13 @@ func (m *gptModifier) updatePrimaryGPTHeader() error {
 	// lastUsableLBA should equal totalSize/512 - 33
 
 	m.gptHeader.LastUsableLBA = m.lastUsableLBA()
-	m.gptHeader.BackupLBA = uint64(m.size/SECTOR_SIZE) - 1
+	m.gptHeader.BackupLBA = uint64(m.size/sectorSize) - 1
 	err := m.calculateCRCs(m.gptHeader, false)
 	if err != nil {
 		return err
 	}
 
-	_, err = m.f.Seek(1*SECTOR_SIZE, 0)
+	_, err = m.f.Seek(1*sectorSize, 0)
 	if err != nil {
 		return err
 	}
@@ -219,7 +225,7 @@ func (m *gptModifier) updatePrimaryGPTHeader() error {
 // UpdateSecondaryGPTHeader ..
 func (m *gptModifier) UpdateSecondaryGPTHeader() error {
 
-	_, err := m.f.Seek(1*SECTOR_SIZE, 0)
+	_, err := m.f.Seek(1*sectorSize, 0)
 	if err != nil {
 		return err
 	}
@@ -240,7 +246,7 @@ func (m *gptModifier) UpdateSecondaryGPTHeader() error {
 		return err
 	}
 
-	_, err = m.f.Seek(int64(g.CurrentLBA*SECTOR_SIZE), 0)
+	_, err = m.f.Seek(int64(g.CurrentLBA*sectorSize), 0)
 	if err != nil {
 		return err
 	}
@@ -261,8 +267,8 @@ func (m *gptModifier) calculateCRCs(g *GPTHeader, skipParts bool) error {
 
 	// calc crc of partition entries array
 	if !skipParts {
-		pea := make([]byte, SECTOR_SIZE*32)
-		_, err := m.f.ReadAt(pea, int64(g.StartLBAParts*SECTOR_SIZE))
+		pea := make([]byte, sectorSize*32)
+		_, err := m.f.ReadAt(pea, int64(g.StartLBAParts*sectorSize))
 		if err != nil {
 			return err
 		}
@@ -297,14 +303,14 @@ func (m *gptModifier) calculateCRCs(g *GPTHeader, skipParts bool) error {
 
 // NeedsResize ..
 func (m *gptModifier) needsResize() bool {
-	return (m.gptHeader.LastUsableLBA+35)*SECTOR_SIZE < uint64(m.size)
+	return (m.gptHeader.LastUsableLBA+35)*sectorSize < uint64(m.size)
 }
 
 // ExtendFinalPartition .. returns number of sectors the partition was grown by
 func (m *gptModifier) extendFinalPartition() (uint64, error) {
 
 	// get last present partition entry from table
-	tableOffset := int64(SECTOR_SIZE * 2)
+	tableOffset := int64(sectorSize * 2)
 	_, err := m.f.Seek(tableOffset, 0)
 	if err != nil {
 		return 0, err
@@ -349,9 +355,9 @@ func (m *gptModifier) extendFinalPartition() (uint64, error) {
 
 func (m *gptModifier) relocateRedundantGPTTable() error {
 
-	// originalLocation := int(m.GPTHeader.StartLBAParts * SECTOR_SIZE)
-	redundantGPTOffset := (m.originalBackupGPTLBA - 32) * SECTOR_SIZE
-	gptLen := 33 * SECTOR_SIZE
+	// originalLocation := int(m.GPTHeader.StartLBAParts * sectorSize)
+	redundantGPTOffset := (m.originalBackupGPTLBA - 32) * sectorSize
+	gptLen := 33 * sectorSize
 
 	// overwrite previous redundant GPT location with zeroes to free it up
 	_, err := m.f.Seek(int64(redundantGPTOffset), 0)
@@ -364,19 +370,19 @@ func (m *gptModifier) relocateRedundantGPTTable() error {
 		return err
 	}
 
-	gptOff := m.backupGPTHeader.StartLBAParts * SECTOR_SIZE
+	gptOff := m.backupGPTHeader.StartLBAParts * sectorSize
 
 	// then table
 	for i := 0; i < 32; i++ {
 
-		b := make([]byte, SECTOR_SIZE)
+		b := make([]byte, sectorSize)
 
-		_, err = m.f.ReadAt(b, int64((m.gptHeader.StartLBAParts*SECTOR_SIZE)+uint64(i*SECTOR_SIZE)))
+		_, err = m.f.ReadAt(b, int64((m.gptHeader.StartLBAParts*sectorSize)+uint64(i*sectorSize)))
 		if err != nil {
 			return err
 		}
 
-		_, err = m.f.WriteAt(b, int64(gptOff+uint64(i*SECTOR_SIZE)))
+		_, err = m.f.WriteAt(b, int64(gptOff+uint64(i*sectorSize)))
 		if err != nil {
 			return err
 		}
@@ -384,15 +390,3 @@ func (m *gptModifier) relocateRedundantGPTTable() error {
 
 	return nil
 }
-
-// Constants ...
-const (
-	SECTOR_SIZE          = 512
-	PARTITION_ENTRY_SIZE = 128
-)
-
-var (
-	newBackupGPTLocation int64
-	gpt1, gpt2           *GPTHeader
-	totalSectors         uint32
-)

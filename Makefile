@@ -72,3 +72,7 @@ dhcp:
 			 mkdir -p build && cd build &&	\
 			 git clone https://github.com/vorteil/dhcp.git; \
 	fi
+
+.PHONY: run-tests
+run-tests:
+	echo "running tests"

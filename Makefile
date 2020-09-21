@@ -1,12 +1,8 @@
-# statik needs the go binary directory
-ifndef GOBINARYDIR
-	GOBINARYDIR := ~/go/bin/
-endif
-
+VORTEIL_BIN := '/home/jensg/go/src/github.com/vorteil/vorteil/cli'
 BUNDLER   := 'master'
 
 .PHONY: all
-all: prep etc build
+all: prep statik build
 
 .PHONY: build
 build:
@@ -17,15 +13,15 @@ build:
 clean:
 	rm -rf build/*
 
-.PHONY: etc
-etc:
+.PHONY: statik
+statik:
 	echo "creating statik file"
-	go get github.com/miekg/dns
-	go install github.com/rakyll/statik
-	$(GOBINARYDIR)statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
+	git clone https://github.com/rakyll/statik.git
+	cd statik && go build
+	statik/statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
 
 .PHONY: prep
-prep: dns dhcp
+prep: dns dhcp statik
 
 .PHONY: build-bundler
 build-bundler:
@@ -73,6 +69,14 @@ dhcp:
 			 git clone https://github.com/vorteil/dhcp.git; \
 	fi
 
-.PHONY: run-tests
-run-tests:
-	echo "running tests"
+.PHONY: test
+test:
+	@echo "running tests"
+	@if [ ! -d test/dl ]; 													\
+		then	\
+		echo "getting go alpine"; \
+		$(VORTEIL_BIN) projects convert-container golang:alpine test/dl; \
+	fi
+	@rm -Rf test/base
+	@$(VORTEIL_BIN) run -v --record=test/base  --files=. --program[0].binary="/test/run_prep.sh" --vm.ram="2048MiB" --vm.cpus=4 --vm.inodes=200000 --vm.disk-size="+1024MiB" --vm.kernel=99.99.1 test/dl
+	# $(VORTEIL_BIN) run -v --files=. --program[0].binary="/test/run_tests.sh" --vm.ram="2048MiB" --vm.cpus=4 --vm.inodes=200000 --vm.disk-size="+1024MiB" --vm.kernel=99.99.1 test/base

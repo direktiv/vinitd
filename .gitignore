@@ -17,3 +17,4 @@ internal/vorteil/statik.go
 .scanner*
 
 test/dl
+test/base

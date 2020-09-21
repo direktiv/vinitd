@@ -1,7 +1,0 @@
-[[program]]
-  args = "/run_tests.sh"
-
-[vm]
-  ram = "256 MiB"
-  kernel = "99.99.1"
-  disk-size = "+128 MiB"

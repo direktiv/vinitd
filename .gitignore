@@ -18,3 +18,4 @@ internal/vorteil/statik.go
 
 test/dl
 test/base
+test/*.raw

@@ -12,4 +12,4 @@ apk add libc-dev
 
 export GOCACHE=/tmp
 
-cd .. && make prep
+# cd .. && make prep

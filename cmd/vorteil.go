@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/vorteil/vinitd/internal/vorteil"
+	"github.com/vorteil/vinitd/pkg/vorteil"
 	"golang.org/x/sys/unix"
 )
 

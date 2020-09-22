@@ -1,11 +1,13 @@
-VORTEIL_BIN := '/home/jensg/go/src/github.com/vorteil/vorteil/cli'
+VORTEIL_BIN := 'cli'
 BUNDLER   := 'master'
+
+basedir := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 .PHONY: all
 all: prep statik build
 
 .PHONY: build
-build:
+build: prep
 	export CGO_LDFLAGS="-static -w -s" && \
 	go build -tags osusergo,netgo -o build/vinitd cmd/vorteil.go
 
@@ -15,21 +17,24 @@ clean:
 
 .PHONY: statik
 statik:
-	echo "creating statik file"
-	git clone https://github.com/rakyll/statik.git
-	cd statik && go build
-	statik/statik -f -include  *.dat -p vorteil -dest internal -src assets/etc
-
+	@mkdir -p $(basedir)/build/
+	@if [ ! -d "build/statik" ]; then \
+		echo "creating statik file $(basedir)"; \
+		cd $(basedir)/build && git clone https://github.com/rakyll/statik.git; \
+		cd $(basedir)/build/statik && go build; \
+		$(basedir)/build/statik/statik -f -include  *.dat -p vorteil -dest internal -src $(basedir)/assets/etc; \
+	fi
 .PHONY: prep
 prep: dns dhcp statik
 
 .PHONY: build-bundler
 build-bundler:
 	echo "checking bundler"
+	@mkdir -p $(basedir)/build/
 	@if [ ! -d "build/bundler" ]; then \
 	    echo 'downloading bundler'; \
-			cd build/ && git clone --single-branch --branch=${BUNDLER} https://github.com/vorteil/bundler.git --depth 1; \
-			cd bundler && go build -o bundler cmd/main.go; \
+			cd $(basedir)/build/ && git clone --single-branch --branch=${BUNDLER} https://github.com/vorteil/bundler.git --depth 1; \
+			cd $(basedir)/build/bundler && go build -o bundler cmd/main.go; \
 	fi
 
 .PHONY: bundle
@@ -39,17 +44,17 @@ bundle: build-bundler build
 			exit 1; \
 	fi
 	@echo "using bundle $(BUNDLE)"
-	@mkdir -p build/bundle
-	@mkdir -p build/bundle/files
-	@if [ ! -f build/bundle/kernel-$(BUNDLE) ]; then \
+	@mkdir -p $(basedir)/build/bundle
+	@mkdir -p $(basedir)/build/bundle/files
+	@if [ ! -f /build/bundle/kernel-$(BUNDLE) ]; then \
 		echo "downloading bundle $(BUNDLE) to build/bundle/kernel-$(BUNDLE)"; \
 	fi
 	@if [ ! -f "build/bundle/files/bundle.toml" ]; then \
 		echo "extracting bundle"; \
-		build/bundler/bundler extract build/bundle/kernel-$(BUNDLE) build/bundle/files; \
+		$(basedir)/build/bundler/bundler extract build/bundle/kernel-$(BUNDLE) build/bundle/files; \
 	fi
 	cp build/vinitd build/bundle/files
-	build/bundler/bundler create $(VERSION) build/bundle/files/bundle.toml > $(TARGET)/kernel-$(VERSION)
+	$(basedir)/build/bundler/bundler create $(VERSION) build/bundle/files/bundle.toml > $(TARGET)/kernel-$(VERSION)
 
 .PHONY: dns
 dns:

@@ -11,13 +11,12 @@ before_script:
   - chmod +x ./cc-test-reporter
   - ./cc-test-reporter before-build
   - sudo apt-get install qemu-kvm
-  - echo $USER
-  - cat /proc/cpuinfo
-  - sudo adduser $USER kvm
-  - ls -la /dev/kvm
+  - sudo chown travis:kvm /dev/kvm
   - wget https://github.com/vorteil/vorteil/releases/latest/download/vorteil_linux-x86.tar.gz
   - tar -xzf vorteil_linux-x86.tar.gz
   - ./vorteil version
+  - cat /proc/meminfo
+  - df -h
 
 script:
   - make all

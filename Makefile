@@ -1,6 +1,7 @@
 VORTEIL_BIN := 'vorteil'
 BUNDLER   := 'master'
 BASEDIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+SUDO := ''
 
 .PHONY: all
 all: prep statik build
@@ -21,7 +22,7 @@ statik:
 	@mkdir -p $(BASEDIR)/build/
 	@if [ ! -d "$(BASEDIR)/build/statik" ]; then \
 		echo "creating statik file $(BASEDIR)"; \
-		cd $(BASEDIR)/build && git clone https://github.com/rakyll/statik.git; \
+		cd $(BASEDIR)/build && git clone https://github.com/rakyll/statik.git; \SUDO
 		cd $(BASEDIR)/build/statik && go build; \
 	fi
 	@echo "generating statik files"
@@ -50,7 +51,7 @@ bundle: build-bundler
 	@mkdir -p $(BASEDIR)/build/bundle
 	@mkdir -p $(BASEDIR)/build/bundle/files
 	@echo "checking $(BASEDIR)/build/bundle/kernel-$(BUNDLE)"
-	@if [ ! -f $(BASEDIR)build/bundle/kernel-$(BUNDLE) ]; then \
+	@if [ ! -f $(BASEDIR)build/bundle/kernel-$(BUNDLE) ];SUDO then \
 		echo "downloading bundle $(BUNDLE) to build/bundle/kernel-$(BUNDLE)"; \
 		wget -O $(BASEDIR)/build/bundle/kernel-$(BUNDLE) https://github.com/vorteil/vbundler/releases/download/$(BUNDLE)/kernel-$(BUNDLE); \
 	fi
@@ -114,6 +115,6 @@ test:
 	$(VORTEIL_BIN) build -f -j -o test/disk.raw --format=raw --program[0].binary="/run_tests.sh" --vm.ram="1024MiB" --vm.cpus=1 --vm.disk-size="+1024MiB" --vm.kernel=20.9.5 test/base
 # run tests with qemu
 	echo "starting qemu"
-	qemu-system-x86_64 -cpu host -enable-kvm -no-reboot -machine q35 -smp 4 -m 2048 -serial stdio -display none -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 -drive if=none,file=test/disk.raw,format=raw,id=hd0  -netdev user,id=network0 -device virtio-net-pci,netdev=network0,id=virtio0,mac=26:10:05:00:00:0a
+	$(SUDO) qemu-system-x86_64 -cpu host -enable-kvm -no-reboot -machine q35 -smp 4 -m 1024 -serial stdio -display none -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 -drive if=none,file=test/disk.raw,format=raw,id=hd0  -netdev user,id=network0 -device virtio-net-pci,netdev=network0,id=virtio0,mac=26:10:05:00:00:0a
 	rm -f c.out
 	$(VORTEIL_BIN) images cp test/disk.raw /c.out .

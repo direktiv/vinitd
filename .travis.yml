@@ -20,7 +20,7 @@ before_script:
 
 script:
   - make all
-  - make test VORTEIL_BIN=$VORTEIL_BIN
+  - make test VORTEIL_BIN=$VORTEIL_BIN SUDO=sudo
   - ls -la
 
 after_success:

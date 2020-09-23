@@ -1,3 +1,4 @@
+sudo: true
 dist: bionic
 
 language: go
@@ -10,8 +11,9 @@ before_script:
   - chmod +x ./cc-test-reporter
   - ./cc-test-reporter before-build
   - sudo apt-get install qemu-kvm
-  - whoami
-  - sudo chown travis:kvm /dev/kvm
+  - echo $USER
+  - cat /proc/cpuinfo
+  - sudo adduser $USER kvm
   - ls -la /dev/kvm
   - wget https://github.com/vorteil/vorteil/releases/latest/download/vorteil_linux-x86.tar.gz
   - tar -xzf vorteil_linux-x86.tar.gz

@@ -85,7 +85,7 @@ test:
 	@if [ ! -d $(BASEDIR)/test/dl ]; 													\
 		then	\
 		echo "getting go alpine with $(VORTEIL_BIN)"; \
-		$(VORTEIL_BIN) projects convert-container golang:alpine test/dl; \
+		$(VORTEIL_BIN) projects convert-container golang:alpine test/dl -j; \
 	fi
 	@if [ ! -d $(BASEDIR)/test/base ]; 													\
 		then	\
@@ -100,7 +100,7 @@ test:
 		cp go.* test/dl/app; \
 # copy assets for statik to run \
 		cp -Rf assets test/dl; \
-		$(VORTEIL_BIN) run --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="2048MiB" --vm.cpus=4 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
+		$(VORTEIL_BIN) run -j --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="2048MiB" --vm.cpus=4 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
 	fi
 # copy assets again for testing
 	@cp -Rf pkg  test/base/app

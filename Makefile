@@ -43,7 +43,7 @@ build-bundler:
 .PHONY: bundle
 bundle: build-bundler
 	@if [ ! -n "$$BUNDLE" ] || [ ! -n "$$VERSION" ]  || [ ! -n "$$TARGET" ]; then \
-	    echo 'BUNDLE, VERSION or TARGET not set, e.g. make BUNDLE=20.9.2 VERSION=99.99.1 TARGET=/tmp bundle'; \
+	    echo 'BUNDLE, VERSION or TARGET not set, e.g. make BUNDLE=20.9.2 VERSION=20.9.5 TARGET=/tmp bundle'; \
 			exit 1; \
 	fi
 	@echo "using bundle $(BUNDLE)"
@@ -100,7 +100,7 @@ test:
 		cp go.* test/dl/app; \
 # copy assets for statik to run \
 		cp -Rf assets test/dl; \
-		$(VORTEIL_BIN) run --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="2048MiB" --vm.cpus=4 --vm.disk-size="+2048MiB" --vm.kernel=99.99.1 test/dl; \
+		$(VORTEIL_BIN) run --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="2048MiB" --vm.cpus=4 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
 	fi
 # copy assets again for testing
 	@cp -Rf pkg  test/base/app

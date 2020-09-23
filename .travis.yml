@@ -16,7 +16,7 @@ before_script:
 
 script:
   - make all
-  - make test
+  - make test VORTEIL_BIN=$VORTEIL_BIN
   - ls -la
 
 after_success:

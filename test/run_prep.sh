@@ -12,7 +12,11 @@ apk add libc-dev
 
 export GOCACHE=/tmp
 
+echo "222"
 cd .. && make prep basedir=/app
 
+echo "2223"
 # run test once to get all dependencies
 cd /app && go test -v -coverprofile c.out github.com/vorteil/vinitd/pkg/vorteil
+
+echo "2224"

@@ -22,7 +22,7 @@ statik:
 	@mkdir -p $(BASEDIR)/build/
 	@if [ ! -d "$(BASEDIR)/build/statik" ]; then \
 		echo "creating statik file $(BASEDIR)"; \
-		cd $(BASEDIR)/build && git clone https://github.com/rakyll/statik.git; \SUDO
+		cd $(BASEDIR)/build && git clone https://github.com/rakyll/statik.git; \
 		cd $(BASEDIR)/build/statik && go build; \
 	fi
 	@echo "generating statik files"
@@ -101,9 +101,9 @@ test:
 		cp go.* test/dl/app; \
 # copy assets for statik to run \
 		cp -Rf assets test/dl; \
-		$(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="1024MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
+		$(VORTEIL_BIN) run -j -v -d --program[0].binary="/run_prep.sh" --vm.ram="1024MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
 	fi
-# copy assets again for testing
+# copy assets again for testing --record=test/base
 	@cp -Rf pkg  test/base/app
 	@cp -Rf cmd  test/base/app
 	@cp go.* test/base/app

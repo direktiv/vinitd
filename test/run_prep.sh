@@ -12,6 +12,7 @@ apk add libc-dev
 
 export GOCACHE=/tmp
 
+
 cd .. && make prep basedir=/app
 
 # run test once to get all dependencies

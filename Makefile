@@ -115,4 +115,4 @@ test:
 # run tests with qemu
 	qemu-system-x86_64 -cpu host -enable-kvm -no-reboot -machine q35 -smp 4 -m 2048 -serial stdio -display none -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 -drive if=none,file=test/disk.raw,format=raw,id=hd0  -netdev user,id=network0 -device virtio-net-pci,netdev=network0,id=virtio0,mac=26:10:05:00:00:0a
 	rm -f c.out
-	cli images cp test/disk.raw /c.out .
+	$(VORTEIL_BIN) images cp test/disk.raw /c.out .

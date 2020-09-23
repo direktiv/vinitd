@@ -15,8 +15,6 @@ before_script:
   - wget https://github.com/vorteil/vorteil/releases/latest/download/vorteil_linux-x86.tar.gz
   - tar -xzf vorteil_linux-x86.tar.gz
   - ./vorteil version
-  - cat /proc/meminfo
-  - df -h
 
 script:
   - make all

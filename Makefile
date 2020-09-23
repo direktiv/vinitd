@@ -101,9 +101,9 @@ test:
 		cp go.* test/dl/app; \
 # copy assets for statik to run \
 		cp -Rf assets test/dl; \
-		$(VORTEIL_BIN) run -j -v -d --program[0].binary="/run_prep.sh" --vm.ram="1024MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
+		$(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="1024MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
 	fi
-# copy assets again for testing --record=test/base
+# copy assets again for testing
 	@cp -Rf pkg  test/base/app
 	@cp -Rf cmd  test/base/app
 	@cp go.* test/base/app

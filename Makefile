@@ -84,7 +84,7 @@ test:
 	@echo "running tests"
 	@if [ ! -d $(BASEDIR)/test/dl ]; 													\
 		then	\
-		echo "getting go alpine"; \
+		echo "getting go alpine with $(VORTEIL_BIN)"; \
 		$(VORTEIL_BIN) projects convert-container golang:alpine test/dl; \
 	fi
 	@if [ ! -d $(BASEDIR)/test/base ]; 													\

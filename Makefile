@@ -1,4 +1,4 @@
-VORTEIL_BIN := 'cli'
+VORTEIL_BIN := 'vorteil'
 BUNDLER   := 'master'
 BASEDIR := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 

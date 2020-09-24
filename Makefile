@@ -99,7 +99,7 @@ test:
 		cp go.* test/dl/app; \
 # copy assets for statik to run \
 		cp -Rf assets test/dl; \
-		$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="2048MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
+		$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="2048MiB" --vm.cpus=1 --vm.disk-size="+1512MiB" --vm.kernel=20.9.5 test/dl; \
 	fi
 # copy assets again for testing
 	@cp -Rf pkg  test/base/app
@@ -110,7 +110,7 @@ test:
 	@rm -f test/base/c.out
 	@cp $(BASEDIR)/test/dl/.vorteilproject test/base
 # build disk
-	ls -la /dev/kvm
 	rm -Rf test/done
-	$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/done --program[0].binary="/run_tests.sh" --vm.ram="2048MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/base
+	df -h
+	$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/done --program[0].binary="/run_tests.sh" --vm.ram="2048MiB" --vm.cpus=1 --vm.disk-size="+1024MiB" --vm.kernel=20.9.5 test/base
 	cp test/done/c.out .

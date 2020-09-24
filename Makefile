@@ -42,7 +42,7 @@ build-bundler:
 	fi
 
 .PHONY: bundle
-bundle: build-bundler
+bundle: build-bundler build
 	@if [ ! -n "$$BUNDLE" ] || [ ! -n "$$VERSION" ]  || [ ! -n "$$TARGET" ]; then \
 	    echo 'BUNDLE, VERSION or TARGET not set, e.g. make BUNDLE=20.9.2 VERSION=20.9.5 TARGET=/tmp bundle'; \
 			exit 1; \
@@ -51,14 +51,13 @@ bundle: build-bundler
 	@mkdir -p $(BASEDIR)/build/bundle
 	@mkdir -p $(BASEDIR)/build/bundle/files
 	@echo "checking $(BASEDIR)/build/bundle/kernel-$(BUNDLE)"
-	@if [ ! -f $(BASEDIR)build/bundle/kernel-$(BUNDLE) ];SUDO then \
+	@if [ ! -f $(BASEDIR)build/bundle/kernel-$(BUNDLE) ]; then \
 		echo "downloading bundle $(BUNDLE) to build/bundle/kernel-$(BUNDLE)"; \
 		wget -O $(BASEDIR)/build/bundle/kernel-$(BUNDLE) https://github.com/vorteil/vbundler/releases/download/$(BUNDLE)/kernel-$(BUNDLE); \
 	fi
-	@if [ ! -f "$(BASEDIR)/build/bundle/files/bundle.toml" ]; then \
-		echo "extracting bundle"; \
-		$(BASEDIR)/build/bundler/bundler extract $(BASEDIR)/build/bundle/kernel-$(BUNDLE) $(BASEDIR)/build/bundle/files; \
-	fi
+	rm -Rf $(BASEDIR)/build/bundle/files
+	echo "extracting bundle"; \
+	$(BASEDIR)/build/bundler/bundler extract $(BASEDIR)/build/bundle/kernel-$(BUNDLE) $(BASEDIR)/build/bundle/files; \
 	cp $(BASEDIR)/build/vinitd $(BASEDIR)/build/bundle/files
 	$(BASEDIR)/build/bundler/bundler create $(VERSION) $(BASEDIR)/build/bundle/files/bundle.toml > $(TARGET)/kernel-$(VERSION)
 

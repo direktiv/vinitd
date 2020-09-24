@@ -7,6 +7,7 @@ package vorteil
 
 import (
 	"net"
+	"os/exec"
 
 	"github.com/vorteil/vorteil/pkg/vcfg"
 )
@@ -144,7 +145,8 @@ type program struct {
 	args []string
 	logs []string
 
-	status status
+	// cmd.Process is not nil once started. app counter uses this
+	cmd *exec.Cmd
 
 	vinitd *Vinitd
 }

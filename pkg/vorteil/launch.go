@@ -186,13 +186,12 @@ func (p *program) launch(systemUser string) error {
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
 
+	p.cmd = cmd
+
 	err = cmd.Start()
 	if err != nil {
-		p.status = statusError
 		return err
 	}
-
-	p.status = statusRun
 
 	go waitForApp(cmd)
 
@@ -465,7 +464,7 @@ func (v *Vinitd) prepProgram(p vcfg.Program) error {
 	// we can add the program to the list now
 	np := &program{
 		vcfgProg: p,
-		status:   statusSetup,
+		cmd:      nil,
 		vinitd:   v,
 	}
 

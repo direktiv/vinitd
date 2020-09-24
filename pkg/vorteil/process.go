@@ -171,17 +171,27 @@ func handleExit(hdr *ProcEventHeader, progs []*program) {
 			return
 		}
 
+		// the apps have started but haven't done netlink
+		if len(procs) == 0 && initStatus >= statusLaunched {
+			logDebug("apps launched but not registered")
+			return
+		}
+
+		logDebug("remove app pid %d, procs %v", hdr.ProcessTgid, procs)
+
 		delete(procs, hdr.ProcessTgid)
 		if len(procs) == 0 {
 
 			// if not all apps had been started we return
 			if initStatus < statusLaunched {
+				logDebug("still launching")
 				return
 			}
 
 			// check if all apps have started. they might be in bootstrap
 			for _, p := range progs {
-				if p.status == statusSetup {
+				if p.cmd == nil || p.cmd.Process == nil {
+					logDebug("apps still starting")
 					return
 				}
 			}
@@ -210,12 +220,13 @@ func parseNetlinkMessage(m syscall.NetlinkMessage, progs []*program) {
 					// app probably already finished
 					return
 				}
-
 				if !strings.HasPrefix(st, "/vorteil/") || st == "/vorteil/busybox" {
 					procs[hdr.ProcessTgid] = hdr.ProcessTgid
 				} else {
 					internal[hdr.ProcessTgid] = st
 				}
+
+				logDebug("add application %s, pid %d, procs %d", st, hdr.ProcessTgid, len(procs))
 				break
 			}
 		case procEventExit:

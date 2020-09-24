@@ -335,6 +335,7 @@ func dhcpDiscover(ifc net.Interface,
 			if offer != nil {
 				return offer, xid, err
 			}
+			logWarn("no dhcp discover response")
 		}
 
 		logWarn("can not get dhcp ip: %v, try %d", err, i)

@@ -110,9 +110,6 @@ test:
 	@rm -f test/base/c.out
 	@cp $(BASEDIR)/test/dl/.vorteilproject test/base
 # build disk
-	$(VORTEIL_BIN) build -f -j -o test/disk.raw --format=raw --program[0].binary="/run_tests.sh" --vm.ram="2048MiB" --vm.cpus=1 --vm.disk-size="+1024MiB" --vm.kernel=20.9.5 test/base
-# run tests with qemu
-	echo "starting qemu"
-	$(SUDO) qemu-system-x86_64 -cpu host -enable-kvm -no-reboot -machine q35 -smp 4 -m 2048 -serial stdio -display none -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 -drive if=none,file=test/disk.raw,format=raw,id=hd0  -netdev user,id=network0 -device virtio-net-pci,netdev=network0,id=virtio0,mac=26:10:05:00:00:0a
-	rm -f c.out
-	$(VORTEIL_BIN) images cp test/disk.raw /c.out .
+	rm -Rf test/done
+	$(VORTEIL_BIN) run -j --record=test/done --program[0].binary="/run_tests.sh" --vm.ram="2048MiB" --vm.cpus=1 --vm.disk-size="+1024MiB" --vm.kernel=20.9.5 test/base
+	cp test/done/c.out .

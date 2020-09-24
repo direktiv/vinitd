@@ -1,3 +1,4 @@
+sudo: true
 dist: bionic
 
 language: go
@@ -5,6 +6,20 @@ language: go
 go:
   - 1.15
 
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+  - sudo apt-get install qemu-kvm
+  - sudo chown travis:kvm /dev/kvm
+  - wget https://github.com/vorteil/vorteil/releases/latest/download/vorteil_linux-x86.tar.gz
+  - tar -xzf vorteil_linux-x86.tar.gz
+  - ./vorteil version
+
 script:
   - make all
-  - make test
+  - make test VORTEIL_BIN=$VORTEIL_BIN SUDO=sudo
+  - ls -la
+
+after_success:
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT

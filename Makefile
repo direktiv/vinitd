@@ -78,6 +78,28 @@ dhcp:
 			 git clone https://github.com/vorteil/dhcp.git; \
 	fi
 
+.PHONY: convert
+convert:
+	@if [ ! -d $(BASEDIR)/test/dl ]; 													\
+		then	\
+		echo "getting go alpine with $(VORTEIL_BIN)"; \
+		$(VORTEIL_BIN) projects convert-container golang:alpine test/dl -j; \
+	fi
+
+.PHONY: fulltest
+fulltest: convert
+	cp Makefile test/dl; \
+	cp test/run* test/dl; \
+# copy the golang app for testing \
+	mkdir -p test/dl/app; \
+	cp -Rf pkg  test/dl/app; \
+	cp -Rf cmd  test/dl/app; \
+	cp go.* test/dl/app; \
+# copy assets for statik to run \
+	cp -Rf assets test/dl; \
+	rm -Rf test/base
+	$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_full.sh" --vm.ram="2048MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
+
 .PHONY: test
 test:
 	@echo "running tests"

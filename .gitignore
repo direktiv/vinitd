@@ -16,6 +16,7 @@ internal/vorteil/statik.go
 
 .scanner*
 
+test/done
 test/dl
 test/base
 test/*.raw

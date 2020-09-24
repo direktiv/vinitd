@@ -36,12 +36,14 @@ const (
 	devtypeUnknown   networkType = iota
 	devtypeNet                   = iota
 	devtypeLocalhost             = iota
+
+	defaultDHCPTimeout = 2 * time.Second
 )
 
 const (
 	deviceNet                 = "1"
 	deviceLocal               = "772"
-	dhcpAttempts              = 3
+	dhcpAttempts              = 10
 	attemptLoops              = 10
 	dhcpDefaultRenew          = 360
 	azureEndpointServerOption = 245
@@ -317,8 +319,8 @@ func dhcpDiscover(ifc net.Interface,
 
 		defer closeFds(sfd, rfd)
 		c := client4.NewClient()
-		c.ReadTimeout = 10 * time.Second
-		c.WriteTimeout = 10 * time.Second
+		c.ReadTimeout = defaultDHCPTimeout
+		c.WriteTimeout = defaultDHCPTimeout
 
 		for a := 0; a < dhcpAttempts; a++ {
 			mrand.Read(xid[:])
@@ -429,8 +431,8 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 		return err
 	}
 	client.LocalAddr = addr
-	client.ReadTimeout = 10 * time.Second
-	client.WriteTimeout = 10 * time.Second
+	client.ReadTimeout = defaultDHCPTimeout
+	client.WriteTimeout = defaultDHCPTimeout
 
 	// add DNS
 	v.dns = append(v.dns, offer.DNS()...)

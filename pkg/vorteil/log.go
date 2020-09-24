@@ -106,11 +106,30 @@ func printVersion() error {
 
 func setupVtty(mode vcfg.StdoutMode) {
 
-	m := mode
+	var m int
+	var err error
 
-	// in case we are getting something unknown we go back to default
-	if m == vcfg.StdoutModeStandard || m == vcfg.StdoutModeUnknown {
-		m = vcfg.StdoutModeDefault
+	switch mode {
+	case vcfg.StdoutModeScreenOnly:
+		m = 1
+	case vcfg.StdoutModeSerialOnly:
+		m = 2
+	case vcfg.StdoutModeDisabled:
+		m = 3
+	default:
+		m = 0
+	}
+
+	os.Stdout, err = os.OpenFile(defaultTTY,
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		logWarn("can not assign /dev/vtty to vinitd")
+	}
+
+	os.Stderr, err = os.OpenFile(defaultTTY,
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		logWarn("can not assign /dev/vtty to vinitd")
 	}
 
 	file, err := os.OpenFile(defaultTTY, os.O_RDWR, 0)
@@ -125,18 +144,6 @@ func setupVtty(mode vcfg.StdoutMode) {
 		if err != nil {
 			LogFnKernel(LogLvERR, "can not ioctl vtty: %s", err.Error())
 		}
-	}
-
-	os.Stdout, err = os.OpenFile(defaultTTY,
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		logWarn("can not assign /dev/vtty to vinitd")
-	}
-
-	os.Stderr, err = os.OpenFile(defaultTTY,
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		logWarn("can not assign /dev/vtty to vinitd")
 	}
 
 }

@@ -9,3 +9,5 @@ rm -Rf /go/pkg/mod/cache
 rm -Rf /build/
 rm -Rf /usr
 rm -Rf /app
+rm -Rf /tmp
+rm -Rf /go/pkg/

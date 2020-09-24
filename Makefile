@@ -111,5 +111,5 @@ test:
 	@cp $(BASEDIR)/test/dl/.vorteilproject test/base
 # build disk
 	rm -Rf test/done
-	$(VORTEIL_BIN) run -j --record=test/done --program[0].binary="/run_tests.sh" --vm.ram="2048MiB" --vm.cpus=1 --vm.disk-size="+1024MiB" --vm.kernel=20.9.5 test/base
+	$(VORTEIL_BIN) run -j -v -d --record=test/done --program[0].binary="/run_tests.sh" --vm.ram="1024MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/base
 	cp test/done/c.out .

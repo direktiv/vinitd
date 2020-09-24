@@ -152,6 +152,7 @@ func (v *Vinitd) Setup() error {
 	}
 
 	// update tty to settings in vcfg
+	logDebug("output mode: %v", v.vcfg.System.StdoutMode)
 	setupVtty(v.vcfg.System.StdoutMode)
 
 	go waitForSignal()

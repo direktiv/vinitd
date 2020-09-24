@@ -98,7 +98,8 @@ fulltest: convert
 # copy assets for statik to run \
 	cp -Rf assets test/dl; \
 	rm -Rf test/base
-	$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.7 test/dl; \
+	$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/full --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.7 test/dl; \
+	cp test/full/c.out . 
 
 .PHONY: test
 test:

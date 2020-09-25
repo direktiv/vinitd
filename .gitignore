@@ -13,9 +13,13 @@
 
 build/
 internal/vorteil/statik.go
+disk.*
 
 .scanner*
 
+
+
+test/full
 test/done
 test/dl
 test/base

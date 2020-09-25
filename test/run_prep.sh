@@ -10,7 +10,7 @@ apk add gcc
 apk add linux-headers
 apk add libc-dev
 
-export GOCACHE=/tmp
+export GOCACHE=/home
 
 
 cd .. && make prep basedir=/app

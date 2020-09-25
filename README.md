@@ -8,7 +8,7 @@
 </p>
 <hr/>
 
-[![Build Status](https://travis-ci.org/vorteil/vinitd.svg?branch=master)](https://travis-ci.org/vorteil/vinitd) <a href="https://codeclimate.com/github/vorteil/vinitd/maintainability"><img src="https://api.codeclimate.com/v1/badges/4f33b7b5dc76ba2d26ae/maintainability" /></a> [![Go Report Card](https://goreportcard.com/badge/github.com/vorteil/vinitd)](https://goreportcard.com/report/github.com/vorteil/vinitd)
+[![Build Status](https://travis-ci.org/vorteil/vinitd.svg?branch=master)](https://travis-ci.org/vorteil/vinitd) <a href="https://codeclimate.com/github/vorteil/vinitd/maintainability"><img src="https://api.codeclimate.com/v1/badges/4f33b7b5dc76ba2d26ae/maintainability" /></a> [![Go Report Card](https://goreportcard.com/badge/github.com/vorteil/vinitd)](https://goreportcard.com/report/github.com/vorteil/vinitd) [![](https://godoc.org/github.com/vorteil/vinitd/pkg/vorteil?status.svg)](http://godoc.org/github.com/vorteil/vinitd/pkg/vorteil) [![Discord](https://img.shields.io/badge/chat-on%20discord-6A7EC2)](https://discord.gg/VjF6wn4)
 
 Vinitd is the init process for [vorteil.io micro virtual machines](https://github.com/vorteil/vorteil). It manages the configuration of the environment and the applications on the instance. For more information:
 
@@ -69,14 +69,31 @@ Vinitd runs through four stages starting with low level tasks like setting up st
 To build and test changes in vinitd it needs to be part of a bundle. To make this process easier there is a dedicated make target available to build a bundle with the newly build vinitd.
 
 ```sh
-make BUNDLE=20.9.2 VERSION=88.88.1 TARGET=/tmp bundle
+make BUNDLE=20.9.8 VERSION=88.88.1 TARGET=~/.vorteild/kernels/watch bundle
+vorteil run /path/to/my/app --vm.kernel=88.88.1
 ```
 
 The variables to provide are:
 
-* BUNDLE: Base used for the new bundle. Can be any bundle from vbundlerthe [releases page](https://github.com/vorteil/vbundler/releases).
+* BUNDLE: Base used for the new bundle. Can be any bundle from vbundler [releases page](https://github.com/vorteil/vbundler/releases).
 * VERSION: Version of the new bundle. Needs to have the following format XX.XX.X
-* TARGET: The target directory for the new bundle. After a successful build there will be a file _`kernel-$VERSION`_ in that directory.
+* TARGET: The target directory for the new bundle. After a successful build there will be a file _`kernel-$VERSION`_ in that directory. The easiest way is to choose vorteil's watch directory so the version is immediatley available for vorteil tools.
+
+### Running tests
+
+Tests in vinitd covering network and operating system settings. Therefore they need to run in a virtual machine. There are two make targets available to run tests within a virtual machine (qemu installation required).
+
+**make test**: Runs tests in two steps. The first steps converts an ubuntu docker image and installs all required dependencies for running and testing vinitd. This runs only the first time. To re-run this step delete the test/dl directory. In a second step the VM starts and runs the tests only. The test results are stored in _c.out_ in the root directory of the project.
+
+**make fulltest**: Runs the above steps in one step. This is for travis CI where the two step process is not necessary.
+
+### Code of Conduct
+
+We have adopted the [Contributor Covenant](https://github.com/vorteil/.github/blob/master/CODE_OF_CONDUCT.md) code of conduct.
+
+### Contributing
+
+Any feedback and contributions are welcome. Read our [contributing guidelines](https://github.com/vorteil/.github/blob/master/CONTRIBUTING.md) for details.
 
 ### License
 

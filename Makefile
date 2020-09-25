@@ -78,38 +78,40 @@ dhcp:
 			 git clone https://github.com/vorteil/dhcp.git; \
 	fi
 
-.PHONY: test
-test:
-	@echo "running tests"
+.PHONY: convert
+convert:
 	@if [ ! -d $(BASEDIR)/test/dl ]; 													\
 		then	\
 		echo "getting go alpine with $(VORTEIL_BIN)"; \
 		$(VORTEIL_BIN) projects convert-container golang:alpine test/dl -j; \
 	fi
+
+.PHONY: fulltest
+fulltest: convert
+	@cp Makefile test/run* test/dl; \
+	mkdir -p test/dl/app; \
+	cp -Rf pkg cmd go.* test/dl/app; \
+	cp -Rf assets Makefile test/run* test/dl; \
+	rm -Rf test/full; \
+	$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/full --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.7 test/dl; \
+	cp test/full/c.out .
+
+.PHONY: test
+test: convert
 	@if [ ! -d $(BASEDIR)/test/base ]; 													\
 		then	\
 		echo "running prep"; \
-# copy the build related files \
-		cp Makefile test/dl; \
-		cp test/run* test/dl; \
-# copy the golang app for testing \
 		mkdir -p test/dl/app; \
-		cp -Rf pkg  test/dl/app; \
-		cp -Rf cmd  test/dl/app; \
-		cp go.* test/dl/app; \
-# copy assets for statik to run \
-		cp -Rf assets test/dl; \
-		$(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="1024MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/dl; \
+		cp -Rf pkg cmd go.* test/dl/app; \
+		cp -Rf assets Makefile test/run* test/dl; \
+		$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+1024MiB" --vm.kernel=20.9.5 test/dl; \
+		cp $(BASEDIR)/test/dl/.vorteilproject test/base; \
 	fi
-# copy assets again for testing
-	@cp -Rf pkg  test/base/app
-	@cp -Rf cmd  test/base/app
-	@cp go.* test/base/app
-	@cp -Rf assets test/base/app
-	@cp test/run* test/base
-	@rm -f test/base/c.out
-	@cp $(BASEDIR)/test/dl/.vorteilproject test/base
-# build disk
-	rm -Rf test/done
-	$(VORTEIL_BIN) run -j -v -d --record=test/done --program[0].binary="/run_tests.sh" --vm.ram="1024MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.5 test/base
-	cp test/done/c.out .
+
+	@cp -Rf pkg cmd assets go.* test/base/app; \
+	cp test/run* test/base; \
+	rm -Rf test/done; \
+	rm -f test/base/c.out; \
+	$(SUDO) $(VORTEIL_BIN) build -f -j -o disk.raw --format=raw --vm.disk-size="+1024MiB" --program[0].binary="/run_tests.sh" --vm.kernel=20.9.7 test/base; \
+	$(SUDO) qemu-system-x86_64 -cpu host -enable-kvm -no-reboot -machine q35 -smp 1 -m 3072 -serial stdio -display none -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 -drive if=none,file=./disk.raw,format=raw,id=hd0 -netdev user,id=network0 -device virtio-net-pci,netdev=network0,id=virtio0; \
+	vorteil images cp ./disk.raw /c.out .

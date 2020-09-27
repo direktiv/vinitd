@@ -12,12 +12,10 @@
 *.out
 
 build/
+/disk.*
 internal/vorteil/statik.go
-disk.*
 
 .scanner*
-
-
 
 test/full
 test/done

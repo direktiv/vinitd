@@ -9,8 +9,8 @@ import (
 
 func TestChangeDiskScheduler(t *testing.T) {
 
-	s, err := ioutil.ReadFile("/sys/block/%s/queue/scheduler")
-	assert.Error(t, err)
+	s, err := ioutil.ReadFile("/sys/block/sda/queue/scheduler")
+	assert.NoError(t, err)
 
 	t.Logf("HH %v", string(s))
 

@@ -18,14 +18,14 @@ clean:
 
 .PHONY: statik
 statik:
-	@mkdir -p $(BASEDIR)/build/
-	@if [ ! -d "$(BASEDIR)/build/statik" ]; then \
-		echo "creating statik file $(BASEDIR)"; \
-		cd $(BASEDIR)/build && git clone https://github.com/rakyll/statik.git; \
-		cd $(BASEDIR)/build/statik && go build; \
+	@mkdir -p build/
+	@if [ ! -d "build/statik" ]; then \
+		echo "creating statik binary"; \
+		cd build && git clone https://github.com/rakyll/statik.git; \
+		cd statik && go build; \
 	fi
 	@echo "generating statik files"
-	$(BASEDIR)/build/statik/statik -f -include  *.dat -p vorteil -dest $(BASEDIR)/pkg -src $(BASEDIR)/assets/etc
+	build/statik/statik -f -include  *.dat -p vorteil -dest $(BASEDIR)/pkg -src assets/etc
 
 .PHONY: prep
 prep: dns dhcp build-bundler statik
@@ -93,7 +93,7 @@ fulltest: convert
 	cp -Rf pkg cmd go.* test/dl/app; \
 	cp -Rf assets Makefile test/run* test/dl; \
 	rm -Rf test/full; \
-	$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/full --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.7 test/dl; \
+	$(SUDO) $(VORTEIL_BIN) run -j  --record=test/full --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.7 test/dl; \
 	cp test/full/c.out .
 
 .PHONY: test
@@ -104,7 +104,7 @@ test: convert
 		mkdir -p test/dl/app; \
 		cp -Rf pkg cmd go.* test/dl/app; \
 		cp -Rf assets Makefile test/run* test/dl; \
-		$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+1024MiB" --vm.kernel=20.9.5 test/dl; \
+		$(SUDO) $(VORTEIL_BIN) run -j --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.7 test/dl; \
 		cp $(BASEDIR)/test/dl/.vorteilproject test/base; \
 	fi
 

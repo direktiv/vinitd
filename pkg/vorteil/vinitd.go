@@ -110,7 +110,7 @@ func (v *Vinitd) PreSetup() error {
 
 	setupVtty(0)
 
-	err := setupBasicDirectories()
+	err := setupBasicDirectories("/")
 	if err != nil {
 		logError("error prep directories: %s", err.Error())
 		return err
@@ -199,7 +199,7 @@ func (v *Vinitd) Setup() error {
 	}()
 
 	go func() {
-		err = etcGenerateFiles("/etc", v.hostname, v.user)
+		err = etcGenerateFiles(v.hostname, v.user)
 		if err != nil {
 			logError("error creating etc files: %s", err.Error())
 			errors <- err
@@ -235,7 +235,7 @@ func (v *Vinitd) Setup() error {
 func (v *Vinitd) PostSetup() error {
 
 	// start a DNS on 127.0.0.1
-	err := v.startDNS(defaultDNSAddr)
+	err := v.startDNS(defaultDNSAddr, true)
 
 	// we might be able to run
 	if err != nil {

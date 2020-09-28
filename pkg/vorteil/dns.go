@@ -16,7 +16,15 @@ const (
 	defaultDNSAddr = "127.0.0.1:53"
 )
 
-func (v *Vinitd) startDNS(dnsAddr string) error {
+func printDNS(dns []string) {
+	if len(dns) > 0 {
+		logAlways("dns\t\t: %s", strings.Join(dns, ", "))
+	} else {
+		logAlways("dns\t\t: none")
+	}
+}
+
+func (v *Vinitd) startDNS(dnsAddr string, verbose bool) error {
 
 	var dns []string
 
@@ -35,10 +43,12 @@ func (v *Vinitd) startDNS(dnsAddr string) error {
 		dns = append(dns, d.String())
 	}
 
-	if len(dns) > 0 {
-		logAlways("dns\t\t: %s", strings.Join(dns, ", "))
-	} else {
-		logAlways("dns\t\t: none")
+	if verbose {
+		printDNS(dns)
+	}
+
+	// don't start
+	if (len(dns) == 0) {
 		return nil
 	}
 

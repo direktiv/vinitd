@@ -15,10 +15,16 @@ const (
 
 func TestEtcFiles(t *testing.T) {
 
+	// this is to protect the removeall /etc
+	err := New(testLogFn).readVCFG("/dev/sda2")
+	if err != nil {
+		t.Logf("not running in a VM")
+	}
+
 	// remove all
 	os.RemoveAll("/etc")
 
-	err := etcGenerateFiles(testString, testString)
+	err = etcGenerateFiles(testString, testString)
 	assert.NoError(t, err)
 
 	allFiles := append(etcFiles, "hostname", "hosts")

@@ -280,14 +280,21 @@ func closeFds(sfd, rfd int) {
 
 func addAddrToInterface(ifc *ifc) error {
 
+	logDebug("add addr to interface %s", ifc.name)
+
 	eth, err := netlink.LinkByName(ifc.name)
 	if err != nil {
 		return err
 	}
 
-	ipConfig := &netlink.Addr{IPNet: ifc.addr}
+	logDebug("addr to add to %s: %v", ifc.name, ifc.addr.String())
 
-	if err = netlink.AddrAdd(eth, ipConfig); err != nil {
+	addr, err := netlink.ParseAddr(ifc.addr.String())
+	if err != nil {
+		return err
+	}
+
+	if err = netlink.AddrAdd(eth, addr); err != nil {
 		return err
 	}
 

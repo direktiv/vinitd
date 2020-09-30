@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -72,7 +73,7 @@ func mountFs(target, fstype, options string) error {
 		if target == "/proc" || target == "/sys" {
 			SystemPanic(fmt.Sprintf("file '%s' does not exist", target))
 		}
-		err := os.Mkdir(target, 0755)
+		err := os.MkdirAll(target, 0755)
 		if err != nil {
 			return err
 		}
@@ -89,19 +90,23 @@ func changeDiskScheduler(vdisk string) {
 
 }
 
-// create and mount basic structure
-func setupBasicDirectories() error {
+// create and mount basic structure. arg for base firectory for testing only
+func setupBasicDirectories(base string) error {
 
-	os.Chmod("/tmp", 0777)
+	bd := func(n string) string {
+		return filepath.Join(base, n)
+	}
+
+	os.Chmod(bd("/tmp"), 0777)
 
 	type dir struct {
 		path, fstype string
 	}
 
 	dirs := []dir{
-		{"/proc", "proc"},
-		{"/sys", "sysfs"},
-		{"/dev/pts", "devpts"},
+		{bd("/proc"), "proc"},
+		{bd("/sys"), "sysfs"},
+		{bd("/dev/pts"), "devpts"},
 	}
 
 	for _, d := range dirs {

@@ -13,12 +13,9 @@
 
 build/
 /disk.*
-internal/vorteil/statik.go
+pkg/vorteil/statik.go
 
 .scanner*
 
-test/full
-test/done
-test/dl
-test/base
+test/_*
 test/*.raw

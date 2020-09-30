@@ -13,19 +13,18 @@ build: prep
 .PHONY: clean
 clean:
 	rm -rf $(BASEDIR)/build/*
-	rm -rf $(BASEDIR)/test/base
-	rm -rf $(BASEDIR)/test/dl
+	rm -rf $(BASEDIR)/test/_*
 
 .PHONY: statik
 statik:
-	@mkdir -p $(BASEDIR)/build/
-	@if [ ! -d "$(BASEDIR)/build/statik" ]; then \
-		echo "creating statik file $(BASEDIR)"; \
-		cd $(BASEDIR)/build && git clone https://github.com/rakyll/statik.git; \
-		cd $(BASEDIR)/build/statik && go build; \
+	@mkdir -p build/
+	@if [ ! -d "build/statik" ]; then \
+		echo "creating statik binary"; \
+		cd build && git clone https://github.com/rakyll/statik.git; \
+		cd statik && go build; \
 	fi
 	@echo "generating statik files"
-	$(BASEDIR)/build/statik/statik -f -include  *.dat -p vorteil -dest $(BASEDIR)/pkg -src $(BASEDIR)/assets/etc
+	build/statik/statik -f -include  *.dat -p vorteil -dest $(BASEDIR)/pkg -src assets/etc
 
 .PHONY: prep
 prep: dns dhcp build-bundler statik
@@ -43,7 +42,7 @@ build-bundler:
 .PHONY: bundle
 bundle: build-bundler build
 	@if [ ! -n "$$BUNDLE" ] || [ ! -n "$$VERSION" ]  || [ ! -n "$$TARGET" ]; then \
-	    echo 'BUNDLE, VERSION or TARGET not set, e.g. make BUNDLE=20.9.2 VERSION=20.9.5 TARGET=/tmp bundle'; \
+	    echo 'BUNDLE, VERSION or TARGET not set, e.g. make bundle BUNDLE=20.9.7 VERSION=99.99.1 TARGET=/tmp bundle'; \
 			exit 1; \
 	fi
 	@echo "using bundle $(BUNDLE)"
@@ -80,38 +79,44 @@ dhcp:
 
 .PHONY: convert
 convert:
-	@if [ ! -d $(BASEDIR)/test/dl ]; 													\
+	@if [ ! -d $(BASEDIR)/test/_dl ]; 													\
 		then	\
 		echo "getting go alpine with $(VORTEIL_BIN)"; \
-		$(VORTEIL_BIN) projects convert-container golang:alpine test/dl -j; \
+		$(VORTEIL_BIN) projects convert-container golang:alpine test/_dl -j; \
 	fi
 
 .PHONY: fulltest
 fulltest: convert
-	@cp Makefile test/run* test/dl; \
-	mkdir -p test/dl/app; \
-	cp -Rf pkg cmd go.* test/dl/app; \
-	cp -Rf assets Makefile test/run* test/dl; \
+	@cp Makefile test/run* test/_dl; \
+	mkdir -p test/_dl/app; \
+	cp -Rf pkg cmd go.* test/_dl/app; \
+	cp -Rf assets Makefile test/run* test/_dl; \
 	rm -Rf test/full; \
-	$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/full --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.7 test/dl; \
-	cp test/full/c.out .
+	$(SUDO) $(VORTEIL_BIN) run -j --record=test/_full --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.7 test/_dl; \
+	cp test/_full/c.out .
 
 .PHONY: test
 test: convert
-	@if [ ! -d $(BASEDIR)/test/base ]; 													\
+	@if [ ! -d $(BASEDIR)/test/_base ]; 													\
 		then	\
 		echo "running prep"; \
-		mkdir -p test/dl/app; \
-		cp -Rf pkg cmd go.* test/dl/app; \
-		cp -Rf assets Makefile test/run* test/dl; \
-		$(SUDO) $(VORTEIL_BIN) run -j -v -d --record=test/base --program[0].binary="/run_prep.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+1024MiB" --vm.kernel=20.9.5 test/dl; \
-		cp $(BASEDIR)/test/dl/.vorteilproject test/base; \
+		mkdir -p test/_dl/app; \
+		cp -Rf pkg cmd go.* test/_dl/app; \
+		cp -Rf assets Makefile test/run* test/_dl; \
+		$(SUDO) $(VORTEIL_BIN) run -j --record=test/_base --program[0].binary="/run_prep.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.7 test/_dl; \
+		cp $(BASEDIR)/test/_dl/.vorteilproject test/_base; \
+	fi
+	@if [ ! -d $(BASEDIR)/test/_hw ]; 													\
+		then	\
+		$(SUDO) $(VORTEIL_BIN) projects convert-container hello-world test/_hw; \
+		$(SUDO) $(VORTEIL_BIN) build -f -o test/_base/hw.raw --format=raw test/_hw; \
 	fi
 
-	@cp -Rf pkg cmd assets go.* test/base/app; \
-	cp test/run* test/base; \
-	rm -Rf test/done; \
-	rm -f test/base/c.out; \
-	$(SUDO) $(VORTEIL_BIN) build -f -j -o disk.raw --format=raw --vm.disk-size="+1024MiB" --program[0].binary="/run_tests.sh" --vm.kernel=20.9.7 test/base; \
+	echo "copying files"
+	@cp -Rf pkg cmd assets go.* test/_base/app; \
+	cp test/run* test/_base; \
+	rm -f test/_base/c.out; \
+
+	$(SUDO) $(VORTEIL_BIN) build -f -o disk.raw --format=raw --vm.ram="3072MiB" --vm.disk-size="+512MiB" --program[0].args="/run_tests.sh" --vm.kernel=20.9.7 test/_base; \
 	$(SUDO) qemu-system-x86_64 -cpu host -enable-kvm -no-reboot -machine q35 -smp 1 -m 3072 -serial stdio -display none -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 -drive if=none,file=./disk.raw,format=raw,id=hd0 -netdev user,id=network0 -device virtio-net-pci,netdev=network0,id=virtio0; \
 	vorteil images cp ./disk.raw /c.out .

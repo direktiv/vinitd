@@ -49,7 +49,7 @@ func writeEtcFile(baseName, fullName string) error {
 func generateEtcHosts(hostname string) {
 
 	if _, err := os.Stat("/etc/hosts"); os.IsNotExist(err) {
-		logDebug("file /etc/hosts does not exist")
+		logDebug("file /etc/hosts does not exist, creating")
 
 		var str strings.Builder
 		str.WriteString("127.0.0.1\tlocalhost\n")
@@ -63,7 +63,7 @@ func generateEtcHosts(hostname string) {
 
 		err = ioutil.WriteFile("/etc/hosts", []byte(str.String()), 0644)
 		if err != nil {
-			logError("can not create /etc/hosts file")
+			logError("can not create %s file: %v", "/etc/hosts", err)
 		}
 	}
 
@@ -88,13 +88,7 @@ func appendUserFile(k, v, user string) {
 
 func createUserFile(k, v, user string) {
 
-	logDebug(fmt.Sprintf("creating %s", k))
-	err := os.MkdirAll("/etc/", 0755)
-	if err != nil {
-		logError(err.Error())
-	}
-
-	err = ioutil.WriteFile(k, []byte(fmt.Sprintf("%s\n", v)), 0644)
+	err := ioutil.WriteFile(k, []byte(fmt.Sprintf("%s\n", v)), 0644)
 	if err != nil {
 		logError(err.Error())
 	}
@@ -125,26 +119,22 @@ func addVorteilUserGroup(user string) {
 
 /* etcGenerateFiles creates required files in /etc. The variable
    'base' is basically only for testing and should be '/etc' during runtime */
-func etcGenerateFiles(base, hostname, user string) error {
+func etcGenerateFiles(hostname, user string) error {
 
 	addVorteilUserGroup(user)
 
-	// check if base exists
-	if _, err := os.Stat(base); os.IsNotExist(err) {
-		logDebug("base directory %s does not exist", base)
-		os.MkdirAll(base, 0755)
-	}
+	os.MkdirAll("/etc", 0755)
 
 	for _, f := range etcFiles {
-		fullName := filepath.Join(base, f)
+		fullName := filepath.Join("/etc", f)
 		if _, err := os.Stat(fullName); os.IsNotExist(err) {
-			logDebug("creating file %s", f)
+			logDebug("creating file %s", fullName)
 			writeEtcFile(f, fullName)
 		}
 	}
 
 	// set hostname (/etc/hostname)
-	f, err := os.OpenFile(filepath.Join(base, "hostname"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("/etc/hostname", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}

@@ -114,16 +114,15 @@ func addVorteilUserGroup(user string) {
 			createUserFile(k, v, user)
 		}
 	}
-
 }
 
 /* etcGenerateFiles creates required files in /etc. The variable
    'base' is basically only for testing and should be '/etc' during runtime */
 func etcGenerateFiles(hostname, user string) error {
 
-	addVorteilUserGroup(user)
-
 	os.MkdirAll("/etc", 0755)
+
+	addVorteilUserGroup(user)
 
 	for _, f := range etcFiles {
 		fullName := filepath.Join("/etc", f)

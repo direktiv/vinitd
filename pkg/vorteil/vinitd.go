@@ -116,12 +116,6 @@ func (v *Vinitd) PreSetup() error {
 		return err
 	}
 
-	err = growDisks()
-	if err != nil {
-		return err
-	}
-	logDebug("pre-setup finished successfully")
-
 	// fetch bootdisk from /proc/bootdev
 	// the kernel has written the boot device into /dev/bootdevice
 	// easier to figure out where to read from
@@ -136,6 +130,12 @@ func (v *Vinitd) PreSetup() error {
 	if err != nil {
 		logError("can not setup mount options: %s", err.Error())
 	}
+
+	err = growDisks()
+	if err != nil {
+		return err
+	}
+	logDebug("pre-setup finished successfully")
 
 	return nil
 

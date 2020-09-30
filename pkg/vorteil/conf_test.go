@@ -23,7 +23,7 @@ func TestReadVCFGFile(t *testing.T) {
 
 	v := New(testLogFn)
 	err := v.readVCFG("/hw.raw")
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 }
 
@@ -34,6 +34,7 @@ func TestOpenVCFGFile(t *testing.T) {
 
 	d, _ := bootDisk()
 	_, err = openVCFGFile(d)
+
 	assert.NoError(t, err)
 
 }

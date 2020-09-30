@@ -16,7 +16,7 @@ func TestReadVCFGFile1(t *testing.T) {
 
 	// empty so should return
 	err := v.startDNS(defaultDNSAddr, false)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 
 	// already running
 	v.vcfg.System.DNS = append(v.vcfg.System.DNS, "8.8.4.4")

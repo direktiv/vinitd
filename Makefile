@@ -109,7 +109,7 @@ test: convert
 	@if [ ! -d $(BASEDIR)/test/_hw ]; 													\
 		then	\
 		$(SUDO) $(VORTEIL_BIN) projects convert-container hello-world test/_hw; \
-		$(SUDO) $(VORTEIL_BIN) build -f -o test/base/hw.raw --format=raw test/_hw; \
+		$(SUDO) $(VORTEIL_BIN) build -f -o test/_base/hw.raw --format=raw test/_hw; \
 	fi
 
 	echo "copying files"
@@ -117,6 +117,6 @@ test: convert
 	cp test/run* test/_base; \
 	rm -f test/_base/c.out; \
 
-	$(SUDO) $(VORTEIL_BIN) build -f -o disk.raw --format=raw --vm.ram="3072MiB" --vm.disk-size="+512MiB" --program[0].binary="/run_tests.sh" --vm.kernel=20.9.7 test/_base; \
+	$(SUDO) $(VORTEIL_BIN) build -f -o disk.raw --format=raw --vm.ram="3072MiB" --vm.disk-size="+512MiB" --program[0].args="/run_tests.sh" --vm.kernel=20.9.7 test/_base; \
 	$(SUDO) qemu-system-x86_64 -cpu host -enable-kvm -no-reboot -machine q35 -smp 1 -m 3072 -serial stdio -display none -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 -drive if=none,file=./disk.raw,format=raw,id=hd0 -netdev user,id=network0 -device virtio-net-pci,netdev=network0,id=virtio0; \
 	vorteil images cp ./disk.raw /c.out .

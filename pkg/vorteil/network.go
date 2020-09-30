@@ -617,7 +617,7 @@ func (v *Vinitd) networkSetup() error {
 		deviceType := networkDeviceType(i.Name)
 
 		// only handle devices
-		if deviceType < devtypeNet {
+		if deviceType < devtypeNet || v.vcfg.Networks == nil {
 			continue
 		}
 
@@ -646,6 +646,11 @@ func (v *Vinitd) networkSetup() error {
 				name:   ifName,
 				idx:    ic,
 				netIfc: i,
+			}
+
+			// if there is nothing configured continue
+			if ic > len(v.vcfg.Networks)-1 {
+				continue
 			}
 
 			ifcg := v.vcfg.Networks[ic]

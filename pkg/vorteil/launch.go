@@ -101,7 +101,7 @@ func waitForApp(cmd *exec.Cmd) {
 	logDebug("waiting for process %d", cmd.Process.Pid)
 	err := cmd.Wait()
 	if err != nil {
-		logError("error while waiting: %s", err.Error())
+		logDebug("error while waiting: %s", err.Error())
 		return
 	}
 	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())

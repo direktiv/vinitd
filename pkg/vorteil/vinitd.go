@@ -72,7 +72,7 @@ func setupMountOptions(diskname string) error {
 			switch fstype {
 			case "ext2":
 				{
-					opts = ""
+					opts = "barrier=0"
 				}
 			case "ext4":
 				{

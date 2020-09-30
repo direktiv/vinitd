@@ -92,7 +92,7 @@ fulltest: convert
 	cp -Rf pkg cmd go.* test/_dl/app; \
 	cp -Rf assets Makefile test/run* test/_dl; \
 	rm -Rf test/full; \
-	$(SUDO) $(VORTEIL_BIN) run -j --record=test/_full --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.7 test/_dl; \
+	$(SUDO) $(VORTEIL_BIN) run -j --record=test/_full --program[0].binary="/run_full.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+3072MiB" --vm.kernel=20.9.9 test/_dl; \
 	cp test/_full/c.out .
 
 .PHONY: test
@@ -103,7 +103,7 @@ test: convert
 		mkdir -p test/_dl/app; \
 		cp -Rf pkg cmd go.* test/_dl/app; \
 		cp -Rf assets Makefile test/run* test/_dl; \
-		$(SUDO) $(VORTEIL_BIN) run -j --record=test/_base --program[0].binary="/run_prep.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.8 test/_dl; \
+		$(SUDO) $(VORTEIL_BIN) run -j --record=test/_base --program[0].binary="/run_prep.sh" --vm.ram="3072MiB" --vm.cpus=1 --vm.disk-size="+2048MiB" --vm.kernel=20.9.9 test/_dl; \
 		cp $(BASEDIR)/test/_dl/.vorteilproject test/_base; \
 	fi
 	@if [ ! -d $(BASEDIR)/test/_hw ]; 													\

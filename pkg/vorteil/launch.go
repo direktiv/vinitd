@@ -230,6 +230,12 @@ func bootstrapWaitForFile(args []string, p *program) {
 // bootstrapWaitForPort hands process until the ports appear for certain network types, timesout after 30 seconds
 func bootstrapWaitForPort(args []string, p *program) {
 
+	var (
+		ifce *net.Interface
+		err  error
+		ief  string
+	)
+
 	args = args[1:]
 
 	// b.args[0] should be ifce, b.args[1:] should be all network
@@ -238,13 +244,22 @@ func bootstrapWaitForPort(args []string, p *program) {
 		return
 	}
 
+	idx := 0
+	ief = "eth0"
+
 	// interface to look on should always exist if they provide it if not its default eth0
-	ief := strings.Split(args[0], "=")[1]
-	ifce, err := net.InterfaceByName(ief)
+	if strings.Contains(args[0], "if=") {
+		ief = strings.Split(args[0], "=")[1]
+		idx = 1
+	}
+
+	ifce, err = net.InterfaceByName(ief)
+
 	if err != nil {
 		logError("bootstrap 'WAIT_PORT' unable to fetch interface %s: %s", ief, err)
 		return
 	}
+
 	// addresses for the said interface
 	addrs, err := ifce.Addrs()
 	if err != nil {
@@ -252,8 +267,10 @@ func bootstrapWaitForPort(args []string, p *program) {
 		return
 	}
 
-	var ip string
-	var isIpv4 bool
+	var (
+		ip     string
+		isIpv4 bool
+	)
 	// loop through addresses to find ipv4 address for interface
 	for _, addr := range addrs {
 		// get ip object of the address and check if ipv4
@@ -265,10 +282,16 @@ func bootstrapWaitForPort(args []string, p *program) {
 
 	var wg sync.WaitGroup
 	// Loop through ports and attempt connections
-	for _, arg := range strings.Split(strings.TrimSpace(strings.Join(args[1:], " ")), " ") {
+	for _, arg := range strings.Split(strings.TrimSpace(strings.Join(args[idx:], " ")), " ") {
 		// listen for ports to be alive
 		wg.Add(1)
 		// go routine it to test all ports currently asked for
+		// simple check for numbers
+		_, err := strconv.Atoi(arg)
+		if err != nil {
+			logError("The value '%s' does not seem to be a port number", arg)
+		}
+
 		go listenForPort(fmt.Sprintf("%s:%s", ip, arg), &wg)
 	}
 	// wait till group resolves

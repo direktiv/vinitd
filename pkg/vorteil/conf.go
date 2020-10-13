@@ -488,7 +488,6 @@ func basicEnv(v *Vinitd) {
 	v.hypervisorInfo.envs[envEthCount] = fmt.Sprintf("%d", len(v.ifcs))
 	v.hypervisorInfo.envs[envHostname] = v.hostname
 	v.hypervisorInfo.envs[envExtHostname] = v.hostname
-	v.hypervisorInfo.envs[envUserData] = ""
 
 	for _, ifc := range v.ifcs {
 		v.hypervisorInfo.envs[fmt.Sprintf(envIP, ifc.idx)] = ifc.addr.IP.String()

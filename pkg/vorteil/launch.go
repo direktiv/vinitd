@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-reap"
+	reap "github.com/hashicorp/go-reap"
 	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
@@ -345,6 +345,7 @@ func bootstrapNotdefined(args []string, p *program) string {
 	}
 
 	for k, val := range p.vinitd.hypervisorInfo.envs {
+		logDebug("replacing %s with %s", fmt.Sprintf(replaceString, k), val)
 		args[1] = strings.ReplaceAll(args[1], fmt.Sprintf(replaceString, k), val)
 	}
 
@@ -426,9 +427,13 @@ func (p *program) bootstrap() error {
 		case bootstrapDefine:
 			{
 				s := bootstrapNotdefined(bs, p)
+				logDebug("bootstrap not definded: %s", s)
 				if len(s) > 0 {
 					p.env = append(p.env, s)
 				}
+
+				// we need to repace it if required
+				p.args = args(p.args[1:], p.env)
 			}
 		default:
 			{

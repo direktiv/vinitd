@@ -173,6 +173,7 @@ func handleExit(hdr *ProcEventHeader, progs []*program) {
 
 		// the apps have started but haven't done netlink
 		if len(procs) == 0 && initStatus >= statusLaunched {
+			// TODO: we need to check if they maybe finished without hitting netlink at all
 			logDebug("apps launched but not registered")
 			return
 		}

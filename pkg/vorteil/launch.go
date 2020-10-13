@@ -433,7 +433,9 @@ func (p *program) bootstrap() error {
 				}
 
 				// we need to repace it if required
-				p.args = args(p.args[1:], p.env)
+				if len(p.args) > 1 {
+					p.args = args(p.args[1:], p.env)
+				}
 			}
 		default:
 			{

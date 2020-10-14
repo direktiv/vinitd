@@ -267,6 +267,7 @@ func (v *Vinitd) PostSetup() error {
 		if err != nil {
 			logWarn("can not read bios vendor")
 			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hvUnknown, cpUnknown
+			basicEnv(v)
 			wg.Done()
 			return
 		}

@@ -53,13 +53,15 @@ func generateEtcHosts(hostname string) {
 
 		var str strings.Builder
 		str.WriteString("127.0.0.1\tlocalhost\n")
-		str.WriteString(fmt.Sprintf("127.0.1.1\t%s\n", hostname))
+		str.WriteString(fmt.Sprintf("127.0.0.1\t%s\n", hostname))
 
 		str.WriteString("::1\tip6-localhost ip6-loopback\n")
 		str.WriteString("fe00::0\tip6-localnet\n")
 		str.WriteString("ff00::0\tip6-mcastprefix\n")
 		str.WriteString("ff02::1\tip6-allnodes\n")
 		str.WriteString("ff02::2\tip6-allrouters\n")
+
+		logDebug("/etc/hosts:\n%s", str.String())
 
 		err = ioutil.WriteFile("/etc/hosts", []byte(str.String()), 0644)
 		if err != nil {

@@ -61,7 +61,7 @@ func main() {
 		return
 	}
 
-	vinitd = vorteil.New(vorteil.LogFnKernel)
+	vinitd = vorteil.New()
 
 	ss := []seq{
 		{
@@ -83,7 +83,7 @@ func main() {
 	}
 
 	for _, s := range ss {
-		vorteil.LogFnKernel(vorteil.LogLvDEBUG, "starting seq %s", s.name)
+		vorteil.LogDebugEarly("starting seq %s", s.name)
 		err := s.fn()
 		if err != nil {
 			vorteil.SystemPanic("can not run %s: %s", s.name, err.Error())

@@ -12,10 +12,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"unsafe"
 
 	"github.com/vorteil/vorteil/pkg/vcfg"
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -80,26 +78,6 @@ func addKernelLogging(sb *strings.Builder) {
 
 func addStdoutLogging(sb *strings.Builder) {
 
-	os.Mkdir(vlogDir, 0755)
-	mountFs(vlogDir, vlogType, "")
-
-	file, err := os.OpenFile(defaultTTY, os.O_RDWR, 0)
-	if err != nil {
-		logError("can not open vtty: %s", err.Error())
-		return
-	}
-	defer file.Close()
-
-	mode := 4
-	_, _, ep := unix.Syscall(unix.SYS_IOCTL, file.Fd(),
-		msgIOCTLOutput, uintptr(unsafe.Pointer(&mode)))
-	if ep != 0 {
-		if err != nil {
-			logError("can not ioctl vtty: %s", err.Error())
-			return
-		}
-	}
-
 	sb.WriteString(inputString)
 	sb.WriteString("    Name tail\n")
 	sb.WriteString("    Refresh_Interval 10\n")
@@ -160,6 +138,19 @@ func (v *Vinitd) startLogging() {
 	str.WriteString("    Log_Level error\n")
 	str.WriteString("    Parsers_File  /etc/parsers.conf\n")
 
+	redir := func() {
+
+		os.Mkdir(vlogDir, 0755)
+		mountFs(vlogDir, vlogType, "")
+		os.OpenFile("/vlogs/stdout", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+
+		f, err := enableTTYRedir()
+		if err != nil {
+			logError("can not enable ttyRedir: %v", err)
+		}
+		v.ttyRedir = f
+	}
+
 	for _, l := range v.vcfg.Logging {
 
 		logDebug("logging type: %s", l.Type)
@@ -179,6 +170,7 @@ func (v *Vinitd) startLogging() {
 			{
 				addStdoutLogging(&str)
 				addLogginOutput(&str, l, "vstdout")
+				redir()
 			}
 		case logProgs:
 			{
@@ -192,6 +184,7 @@ func (v *Vinitd) startLogging() {
 				addStdoutLogging(&str)
 				addProgLogging(&str, v.programs)
 				addLogginOutput(&str, l, "*")
+				redir()
 			}
 		}
 
@@ -204,7 +197,7 @@ func (v *Vinitd) startLogging() {
 
 	err := ioutil.WriteFile("/etc/fb.cfg", []byte(str.String()), 0644)
 	if err != nil {
-		logAlways("can not create fluent-bit config file: %s", err.Error())
+		logError("can not create fluent-bit config file: %s", err.Error())
 		return
 	}
 
@@ -231,7 +224,7 @@ func (v *Vinitd) startLogging() {
 
 	err = cmd.Start()
 	if err != nil {
-		logAlways("%s", err.Error())
+		logError("%s", err.Error())
 	}
 
 }

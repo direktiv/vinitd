@@ -29,15 +29,13 @@ const (
 )
 
 // New returns a new vinitd object
-func New(logging logFn) *Vinitd {
+func New() *Vinitd {
 
 	rand.Seed(time.Now().UnixNano())
 
 	v := &Vinitd{
 		ifcs: make(map[string]*ifc),
 	}
-
-	vlog = logging
 
 	// hypervisor and vorteil special envse.g. IP_0, EXT_HOSTNAME
 	v.hypervisorInfo.envs = make(map[string]string)
@@ -108,13 +106,15 @@ func setupMountOptions(diskname string) error {
 // with new args
 func (v *Vinitd) PreSetup() error {
 
-	setupVtty(0)
+	v.setupVtty(0)
 
 	err := setupBasicDirectories("/")
 	if err != nil {
 		logError("error prep directories: %s", err.Error())
 		return err
 	}
+
+	go v.checkLogs()
 
 	// fetch bootdisk from /proc/bootdev
 	// the kernel has written the boot device into /dev/bootdevice
@@ -153,7 +153,7 @@ func (v *Vinitd) Setup() error {
 
 	// update tty to settings in vcfg
 	logDebug("output mode: %v", v.vcfg.System.StdoutMode)
-	setupVtty(v.vcfg.System.StdoutMode)
+	v.setupVtty(v.vcfg.System.StdoutMode)
 
 	go waitForSignal()
 
@@ -322,7 +322,7 @@ func waitForSignal() {
 
 	sig := <-killSignal
 
-	logAlways("got signal %d", sig)
+	logDebug("got signal %d", sig)
 	if sig == syscall.SIGPWR {
 		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
 	} else {

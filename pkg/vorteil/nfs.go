@@ -19,7 +19,7 @@ func resolveNFS(name string) net.IP {
 	logDebug("resolving nfs server: %s", name)
 	ips, err := net.LookupIP(name)
 	if err != nil {
-		logAlways("can not resolve %s", name)
+		logError("can not resolve %s", name)
 		return nil
 	}
 	for _, i := range ips {
@@ -62,7 +62,7 @@ func setupNFS(mounts []vcfg.NFSSettings) {
 		a = append(a, attrs)
 		a = append(a, fmt.Sprintf("addr=%s", s.String()))
 
-		logAlways("nfs mount %s to %s with %s", srvInfo[1], mp, strings.Join(a[:], ","))
+		logDebug("nfs mount %s to %s with %s", srvInfo[1], mp, strings.Join(a[:], ","))
 		os.MkdirAll(mp, 0755)
 
 		err := syscall.Mount(fmt.Sprintf(":%s", srvInfo[1]), mp, "nfs", 0, strings.Join(a[:], ","))

@@ -7,13 +7,11 @@ package vorteil
 
 import (
 	"net"
+	"os"
 	"os/exec"
 
 	"github.com/vorteil/vorteil/pkg/vcfg"
 )
-
-// LogLevel in linux kernel / vinitd
-type LogLevel int
 
 type hypervisor int
 type cloud int
@@ -46,19 +44,6 @@ const (
 	envIP            = "IP%d"
 	envExtIP         = "EXT_IP%d"
 	envUserData      = "USERDATA"
-)
-
-// supported log level in linux kernel
-const (
-	LogLvEMERG   LogLevel = iota
-	LogLvALERT            = iota
-	LogLvCRIT             = iota
-	LogLvERR              = iota
-	LogLvWARNING          = iota
-	LogLvNOTICE           = iota
-	LogLvINFO             = iota
-	LogLvDEBUG            = iota
-	LogLvSTDERR           = iota
 )
 
 const (
@@ -99,8 +84,6 @@ const (
 	cpAzure   cloud = iota
 )
 
-type logFn func(level LogLevel, format string, values ...interface{})
-
 type ifc struct {
 	name   string
 	idx    int
@@ -135,6 +118,8 @@ type Vinitd struct {
 
 	// configured dns servers
 	dns []net.IP
+
+	tty, ttyS, ttyRedir *os.File
 }
 
 type program struct {

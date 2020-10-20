@@ -705,7 +705,7 @@ func sortAndPrint(ifcs map[string]*ifc) {
 
 	sort.Strings(ifcKeys)
 	for _, iKey := range ifcKeys {
-		logAlways("%s ip\t: %s", ifcs[iKey].name, ifcs[iKey].addr.IP.String())
+		logAlways("%s ip\t\t: %s", ifcs[iKey].name, ifcs[iKey].addr.IP.String())
 		logAlways("%s mask\t: %s", ifcs[iKey].name, net.IP(ifcs[iKey].addr.Mask).String())
 		logAlways("%s gateway\t: %s", ifcs[iKey].name, ifcs[iKey].gw.String())
 	}

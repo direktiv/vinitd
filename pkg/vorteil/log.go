@@ -22,10 +22,6 @@ var (
 	logger *logrus.Logger
 )
 
-const (
-	msgIOCTLOutput = 0x40042101
-)
-
 func logAlways(format string, values ...interface{}) {
 	txt := fmt.Sprintf(format, values...)
 	up := fmt.Sprintf("[%05.6f]", uptime())
@@ -60,19 +56,12 @@ func logWarn(format string, values ...interface{}) {
 
 // SystemPanic prints error message and shuts down the system
 func SystemPanic(format string, values ...interface{}) {
-	logger.Panic(fmt.Sprintf(format, values...))
+	logger.Errorf(fmt.Sprintf(format, values...))
 	shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, forcedPoweroffTimeout)
 }
 
 func logError(format string, values ...interface{}) {
 	logger.Errorf(fmt.Sprintf(format+"\n", values...))
-}
-
-func writeToOut(out *os.File, format string, values ...interface{}) {
-	txt := fmt.Sprintf(format, values...)
-	up := fmt.Sprintf("[%05.6f]", uptime())
-	fmt.Fprintf(out, "%s %s\n", up, txt)
-	out.Sync()
 }
 
 func printVersion() error {
@@ -206,7 +195,7 @@ func (v *Vinitd) checkLogs() {
 	setLoglevel()
 
 	var event syscall.EpollEvent
-	var events [1]syscall.EpollEvent
+	var events [32]syscall.EpollEvent
 
 	file, err := os.Open(defaultTTY)
 	if err != nil {
@@ -235,9 +224,12 @@ func (v *Vinitd) checkLogs() {
 		return
 	}
 
+	b1 := make([]byte, 65536)
+
 	for {
 
 		nevents, err := syscall.EpollWait(epfd, events[:], -1)
+
 		if err != nil {
 			logError("epoll error: %v", err)
 			continue
@@ -246,14 +238,15 @@ func (v *Vinitd) checkLogs() {
 		ts := []*os.File{v.tty, v.ttyS, v.ttyRedir}
 
 		for ev := 0; ev < nevents; ev++ {
-			b, err := ioutil.ReadFile(defaultTTY)
+			r, err := file.Read(b1)
+
 			if err != nil {
 				logError("epoll error: %v", err)
 			}
 
 			for _, t := range ts {
 				if t != nil {
-					t.Write(b)
+					t.Write(b1[:r])
 				}
 			}
 		}

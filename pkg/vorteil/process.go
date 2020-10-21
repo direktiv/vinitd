@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -28,7 +29,7 @@ const (
 	procEventFork     = 0x00000001
 	procEventExec     = 0x00000002
 
-	busboxScript = "/vorteil/busybox-install.sh"
+	busboxScript = "/vorteil/busybox"
 )
 
 var (
@@ -288,16 +289,30 @@ func recv(p []byte, sock int) ([]syscall.NetlinkMessage, error) {
 
 func runBusyboxScript() error {
 
+	dirs := []string{"/bin", "/usr/bin"}
+
 	if _, err := os.Stat(busboxScript); err == nil {
 
-		cmd := exec.Command(busboxScript)
+		for _, d := range dirs {
+			os.MkdirAll(d, 0755)
+		}
 
-		err = cmd.Start()
+		out, err := exec.Command(busboxScript, "--list").Output()
 		if err != nil {
 			return err
 		}
 
-		cmd.Wait()
+		apps := strings.Split(string(out), "\n")
+		for _, app := range apps {
+			if app != "[" && app != "[[" && len(app) > 0 {
+				for _, d := range dirs {
+					err = os.Symlink(busboxScript, filepath.Join(d, app))
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
 
 	}
 

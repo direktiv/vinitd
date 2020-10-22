@@ -257,6 +257,8 @@ func procsys(k string, val string) error {
 
 	p := fmt.Sprintf("/proc/sys/%s", k)
 
+	logDebug("setting %s to %v", p, val)
+
 	err := ioutil.WriteFile(p, []byte(val), 0644)
 	if err != nil {
 		return err
@@ -599,6 +601,7 @@ func enableContainers() error {
 // sysctls
 func systemConfig(sysctls map[string]string, hostname string, maxFds int) error {
 
+	logDebug("removing ld.so")
 	os.Remove("/etc/ld.so.preload")
 	os.Remove("/etc/ld.so.cache")
 

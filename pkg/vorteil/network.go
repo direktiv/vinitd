@@ -252,6 +252,8 @@ func renewDHCP(name string, cinfo *clientdhcp) (*dhcpv4.DHCPv4, error) {
 
 	defer closeFds(sfd, rfd)
 
+	logDebug("send dhcp")
+
 	request, err := dhcpv4.NewRequestFromOffer(cinfo.offer,
 		dhcpv4.WithTransactionID(cinfo.xid),
 		dhcpv4.WithOption(dhcpv4.OptClientIdentifier(cinfo.cid)),
@@ -459,12 +461,14 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 			offer:  offer,
 		}
 
+	again:
 		// this is getting the ack,if not we panic because we are using that IP already
 		ack, err := renewDHCP(name, clientInfo)
 		if err != nil {
 			logWarn("can not ack IP address: %s", err.Error())
+			goto again
 		}
-		logDebug("dhcp acknowledged: %v", ack)
+		logDebug("dhcp acknowledged: %v, renew %d", ack, renew)
 
 		for {
 			<-time.After(time.Duration(renew) * time.Second)

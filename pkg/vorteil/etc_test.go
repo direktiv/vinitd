@@ -16,7 +16,7 @@ const (
 func TestEtcFiles(t *testing.T) {
 
 	// this is to protect the removeall /etc
-	err := New(testLogFn).readVCFG("/dev/sda")
+	err := New().readVCFG("/dev/sda")
 	if err != nil {
 		t.Logf("not running in a VM")
 	}

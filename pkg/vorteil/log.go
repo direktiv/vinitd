@@ -231,6 +231,11 @@ func (v *Vinitd) checkLogs() {
 		nevents, err := syscall.EpollWait(epfd, events[:], -1)
 
 		if err != nil {
+			if e, ok := err.(syscall.Errno); ok {
+				if e.Temporary() {
+					continue
+				}
+			}
 			logError("epoll error: %v", err)
 			continue
 		}

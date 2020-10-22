@@ -74,6 +74,7 @@ func prepSbinPower() {
 
 	sbin := func(name string) {
 		// create
+		logDebug("removing %s", name)
 		os.Remove(name)
 		err := os.Symlink("/vorteil/vinitd", name)
 		if err != nil {

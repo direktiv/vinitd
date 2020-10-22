@@ -164,44 +164,37 @@ func listenToProcesses(progs []*program) {
 }
 
 func handleExit(hdr *ProcEventHeader, progs []*program) {
-	if hdr.ProcessTgid == hdr.ProcessPid {
 
-		// check if internal process
-		if len(internal[hdr.ProcessTgid]) > 0 {
-			delete(internal, hdr.ProcessTgid)
-			return
-		}
-
-		// the apps have started but haven't done netlink
-		if len(procs) == 0 && initStatus >= statusLaunched {
-			// TODO: we need to check if they maybe finished without hitting netlink at all
-			logDebug("apps launched but not registered")
-			return
-		}
-
-		logDebug("remove app pid %d, procs %v", hdr.ProcessTgid, procs)
-
-		delete(procs, hdr.ProcessTgid)
-		if len(procs) == 0 {
-
-			// if not all apps had been started we return
-			if initStatus < statusLaunched {
-				logDebug("still launching")
-				return
-			}
-
-			// check if all apps have started. they might be in bootstrap
-			for _, p := range progs {
-				if p.cmd == nil || p.cmd.Process == nil {
-					logDebug("apps still starting")
-					return
-				}
-			}
-
-			logAlways("no programs still running")
-			shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
+	// count is not correct. it is just a marker that we should keep running
+	count := 0
+	rpo, _ := ps.Processes()
+	for _, p := range rpo {
+		if p.Pid() > 2 && p.PPid() > 2 &&
+			p.Executable() != "chronyd" &&
+			p.Executable() != "fluent-bit" {
+			count++
 		}
 	}
+
+	// count the ones bootstrapping or not started
+	for _, p := range progs {
+
+		// has not been started or stil running
+		if p.cmd == nil {
+			count++
+		} else if p.cmd != nil && p.cmd.ProcessState == nil {
+			count++
+		} else if p.cmd != nil && p.cmd.ProcessState != nil && !p.cmd.ProcessState.Exited() {
+			count++
+		}
+
+	}
+
+	if count == 0 {
+		logAlways("no programs still running")
+		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
+	}
+
 }
 
 func parseNetlinkMessage(m syscall.NetlinkMessage, progs []*program) {
@@ -213,26 +206,9 @@ func parseNetlinkMessage(m syscall.NetlinkMessage, progs []*program) {
 		binary.Read(buf, binary.LittleEndian, hdr)
 
 		switch hdr.What {
-		case procEventFork:
-			fallthrough
-		case procEventExec:
-			{
-				st, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", hdr.ProcessTgid))
-				if err != nil {
-					// app probably already finished
-					return
-				}
-				if !strings.HasPrefix(st, "/vorteil/") || st == "/vorteil/busybox" {
-					procs[hdr.ProcessTgid] = hdr.ProcessTgid
-				} else {
-					internal[hdr.ProcessTgid] = st
-				}
-
-				logDebug("add application %s, pid %d, procs %d", st, hdr.ProcessTgid, len(procs))
-				break
-			}
 		case procEventExit:
 			{
+				logDebug("remove application %d", hdr.ProcessPid)
 				handleExit(hdr, progs)
 			}
 		}
@@ -306,10 +282,17 @@ func runBusyboxScript() error {
 		for _, app := range apps {
 			if app != "[" && app != "[[" && len(app) > 0 {
 				for _, d := range dirs {
-					err = os.Symlink(busboxScript, filepath.Join(d, app))
-					if err != nil {
-						return err
+
+					a := filepath.Join(d, app)
+
+					// if there is one already we don't do it
+					if _, err := os.Stat(a); os.IsNotExist(err) {
+						err = os.Symlink(busboxScript, a)
+						if err != nil {
+							return err
+						}
 					}
+
 				}
 			}
 		}

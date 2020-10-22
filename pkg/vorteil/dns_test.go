@@ -11,7 +11,7 @@ import (
 
 func TestReadVCFGFile1(t *testing.T) {
 
-	v := New(testLogFn)
+	v := New()
 	v.readVCFG("/hw.raw")
 
 	// empty so should return

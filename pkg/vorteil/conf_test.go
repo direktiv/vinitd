@@ -1,7 +1,6 @@
 package vorteil
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,13 +14,9 @@ func TestBootDisk(t *testing.T) {
 
 }
 
-func testLogFn(level LogLevel, format string, values ...interface{}) {
-	fmt.Printf(format, values...)
-}
-
 func TestReadVCFGFile(t *testing.T) {
 
-	v := New(testLogFn)
+	v := New()
 	err := v.readVCFG("/hw.raw")
 	assert.NoError(t, err)
 

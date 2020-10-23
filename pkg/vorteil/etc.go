@@ -17,6 +17,10 @@ import (
 	"github.com/rakyll/statik/fs"
 )
 
+const (
+	pathMachineID = "/etc/machine-id"
+)
+
 var (
 	etcFiles = []string{"group", "localtime", "nsswitch.conf", "passwd", "resolv.conf"}
 )
@@ -100,16 +104,18 @@ func createUserFile(k, v, user string) {
 
 func generateEtcMachineID() {
 
-	id, err := uuid.NewRandom()
-	if err != nil {
-		logError(err.Error())
-		return
-	}
+	if _, err := os.Stat(pathMachineID); os.IsNotExist(err) {
+		id, err := uuid.NewRandom()
+		if err != nil {
+			logError(err.Error())
+			return
+		}
 
-	err = ioutil.WriteFile("/etc/machine-id", []byte(id.String()), 0644)
-	if err != nil {
-		logError(err.Error())
-		return
+		err = ioutil.WriteFile(pathMachineID, []byte(id.String()), 0644)
+		if err != nil {
+			logError(err.Error())
+			return
+		}
 	}
 
 }

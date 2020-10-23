@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/rakyll/statik/fs"
 )
 
@@ -97,6 +98,22 @@ func createUserFile(k, v, user string) {
 
 }
 
+func generateEtcMachineID() {
+
+	id, err := uuid.NewRandom()
+	if err != nil {
+		logError(err.Error())
+		return
+	}
+
+	err = ioutil.WriteFile("/etc/machine-id", []byte(id.String()), 0644)
+	if err != nil {
+		logError(err.Error())
+		return
+	}
+
+}
+
 func addVorteilUserGroup(user string) {
 
 	if user == "" {
@@ -148,6 +165,8 @@ func etcGenerateFiles(hostname, user string) error {
 
 	// generate /etc/hosts
 	generateEtcHosts(hostname)
+
+	generateEtcMachineID()
 
 	return nil
 }

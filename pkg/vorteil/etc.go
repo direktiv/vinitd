@@ -172,7 +172,8 @@ func etcGenerateFiles(hostname, user string) error {
 	// generate /etc/hosts
 	generateEtcHosts(hostname)
 
-	generateEtcMachineID()
+	// needs random and takes some time
+	go generateEtcMachineID()
 
 	return nil
 }

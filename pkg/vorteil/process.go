@@ -191,7 +191,9 @@ func handleExit(hdr *ProcEventHeader, progs []*program) {
 	}
 
 	if count == 0 {
-		logAlways("no programs still running")
+		if initStatus != statusPoweroff {
+			logAlways("no programs still running")
+		}
 		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
 	}
 

@@ -163,7 +163,7 @@ func listenToProcesses(progs []*program) {
 	}
 }
 
-func handleExit(hdr *ProcEventHeader, progs []*program) {
+func handleExit(progs []*program) {
 
 	// count is not correct. it is just a marker that we should keep running
 	count := 0
@@ -211,7 +211,7 @@ func parseNetlinkMessage(m syscall.NetlinkMessage, progs []*program) {
 		case procEventExit:
 			{
 				logDebug("remove application %d", hdr.ProcessPid)
-				handleExit(hdr, progs)
+				handleExit(progs)
 			}
 		}
 	}

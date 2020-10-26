@@ -96,7 +96,7 @@ func fixDefaults(p *vcfg.Program) {
 
 }
 
-func waitForApp(cmd *exec.Cmd) {
+func (p *program) waitForApp(cmd *exec.Cmd) {
 
 	logDebug("waiting for process %d", cmd.Process.Pid)
 	err := cmd.Wait()
@@ -106,6 +106,8 @@ func waitForApp(cmd *exec.Cmd) {
 	}
 	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 
+	// just in case call it again
+	handleExit(p.vinitd.programs)
 }
 
 func (p *program) launch(systemUser string) error {
@@ -193,7 +195,7 @@ func (p *program) launch(systemUser string) error {
 		return err
 	}
 
-	go waitForApp(cmd)
+	go p.waitForApp(cmd)
 
 	logDebug("started %s as pid %d", p.path, cmd.Process.Pid)
 

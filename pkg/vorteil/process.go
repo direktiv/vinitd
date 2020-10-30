@@ -153,7 +153,7 @@ func listenToProcesses(progs []*program) {
 		nlmessages, err := recv(p, sock)
 
 		if err != nil {
-			logWarn("error receiving netlink message: %s", err.Error())
+			logDebug("error receiving netlink message: %s", err.Error())
 			continue
 		}
 

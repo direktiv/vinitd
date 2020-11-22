@@ -8,8 +8,11 @@ package vorteil
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -229,6 +232,47 @@ func bootstrapWaitForFile(args []string, p *program) {
 
 }
 
+// bootstrapGet executes a get request and saves the file
+func bootstrapGetRequest(args []string, p *program) {
+
+	if len(args) < 3 {
+		logError("bootstrap 'WAIT_GET' needs at least one url and one target file")
+		return
+	}
+
+	logDebug("get request: %s", args[1])
+
+	_, err := url.ParseRequestURI(args[1])
+	if err != nil {
+		logAlways("can not parse url: %s", err)
+		return
+	}
+
+	resp, err := http.Get(args[1])
+	if err != nil {
+		logAlways("can not get url: %s", err)
+		return
+	}
+
+	defer resp.Body.Close()
+
+	err = os.MkdirAll(filepath.Dir(args[2]), 0755)
+	if err != nil {
+		logAlways("can not create dir %s: %s", filepath.Dir(args[2]), err)
+		return
+	}
+
+	out, err := os.Create(args[2])
+	if err != nil {
+		logAlways("can not create file %s: %s", args[2], err)
+		return
+	}
+	defer out.Close()
+	io.Copy(out, resp.Body)
+
+	logDebug("got %s to %s", args[1], args[2])
+}
+
 // bootstrapWaitForPort hands process until the ports appear for certain network types, timesout after 30 seconds
 func bootstrapWaitForPort(args []string, p *program) {
 
@@ -422,6 +466,11 @@ func (p *program) bootstrap() error {
 				bootstrapWaitForPort(bs, p)
 				break
 			}
+		case bootstrapGet:
+			{
+				bootstrapGetRequest(bs, p)
+				break
+			}
 		case bootstrapFandR:
 			{
 				bootstrapReplace(bs, p)
@@ -441,7 +490,7 @@ func (p *program) bootstrap() error {
 			}
 		default:
 			{
-				logError("unknown bootstrap command: %d", bs[0])
+				logError("unknown bootstrap command: %s", bs[0])
 			}
 		}
 	}

@@ -33,6 +33,7 @@ const (
 	bootstrapDefine   = "DEFINE_IF_NOT_DEFINED"
 	bootstrapWaitFile = "WAIT_FILE"
 	bootstrapWaitPort = "WAIT_PORT"
+	bootstrapGet      = "GET"
 )
 
 const (

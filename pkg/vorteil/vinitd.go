@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -44,7 +45,20 @@ func New() *Vinitd {
 
 }
 
-func setupMountOptions(diskname string) error {
+func isReadOnlyBootDisk(kernelargs string) bool {
+
+	// check if it is set to ro
+	for _, o := range strings.Split(kernelargs, " ") {
+		if o == "ro" {
+			logDebug("read-only filesystem")
+			return true
+		}
+	}
+
+	return false
+}
+
+func setupMountOptions(diskname string, readOnly bool) error {
 
 	var (
 		dev, path, fstype, opts string
@@ -64,7 +78,18 @@ func setupMountOptions(diskname string) error {
 	s := bufio.NewScanner(file)
 
 	for s.Scan() {
+
 		fmt.Sscanf(s.Text(), "%s %s %s %s %d %d", &dev, &path, &fstype, &opts, &a, &b)
+
+		logDebug("mount options %s", opts)
+
+		// MS_LAZYTIME 1 << 25
+		flags := syscall.MS_REMOUNT | syscall.MS_NOATIME | (1 << 25)
+
+		if readOnly {
+			flags |= syscall.MS_RDONLY
+		}
+
 		if path == "/" {
 			logDebug("config %s filesystem on %s, %s", fstype, part, dev)
 			switch fstype {
@@ -86,9 +111,8 @@ func setupMountOptions(diskname string) error {
 				}
 			}
 
-			// MS_LAZYTIME 1 << 25
-			logDebug("using fs opts %s", opts)
-			return syscall.Mount(part, "/", fstype, syscall.MS_REMOUNT|syscall.MS_NOATIME|(1<<25), opts)
+			logDebug("using fs opts %s, flags %x", opts, flags)
+			return syscall.Mount(part, "/", fstype, uintptr(flags), opts)
 
 		}
 	}
@@ -124,9 +148,17 @@ func (v *Vinitd) PreSetup() error {
 		return err
 	}
 
+	err = v.readVCFG(v.diskname)
+	if err != nil {
+		logWarn("error loading vcfg: %s", err.Error())
+		return err
+	}
+
+	v.readOnly = isReadOnlyBootDisk(v.vcfg.System.KernelArgs)
+
 	// on error we can proceed here
 	// has performance impact but can still run
-	err = setupMountOptions(v.diskname)
+	err = setupMountOptions(v.diskname, v.readOnly)
 	if err != nil {
 		logError("can not setup mount options: %s", err.Error())
 	}
@@ -145,12 +177,6 @@ func (v *Vinitd) PreSetup() error {
 // It prepares stdout, poweroff events, network and basic system configuration
 func (v *Vinitd) Setup() error {
 
-	err := v.readVCFG(v.diskname)
-	if err != nil {
-		logWarn("error loading vcfg: %s", err.Error())
-		return err
-	}
-
 	// update tty to settings in vcfg
 	logDebug("output mode: %v", v.vcfg.System.StdoutMode)
 	v.setupVtty(v.vcfg.System.StdoutMode)
@@ -161,7 +187,10 @@ func (v *Vinitd) Setup() error {
 
 	// power functions
 	go listenToPowerEvent()
-	go prepSbinPower()
+
+	if !v.readOnly {
+		go prepSbinPower()
+	}
 
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_CAD_OFF)
 	printVersion()
@@ -199,10 +228,12 @@ func (v *Vinitd) Setup() error {
 	}()
 
 	go func() {
-		err = etcGenerateFiles(v.hostname, v.user)
-		if err != nil {
-			logError("error creating etc files: %s", err.Error())
-			errors <- err
+		if !v.readOnly {
+			err = etcGenerateFiles(v.hostname, v.user)
+			if err != nil {
+				logError("error creating etc files: %s", err.Error())
+				errors <- err
+			}
 		}
 		wg.Done()
 	}()
@@ -254,8 +285,10 @@ func (v *Vinitd) PostSetup() error {
 	}()
 
 	go func() {
-		if len(v.vcfg.Logging) > 0 {
+		if len(v.vcfg.Logging) > 0 && !v.readOnly {
 			v.startLogging()
+		} else {
+			logWarn("filesystem read-only, can not start logging")
 		}
 		wg.Done()
 	}()

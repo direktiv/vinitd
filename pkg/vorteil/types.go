@@ -121,6 +121,8 @@ type Vinitd struct {
 	dns []net.IP
 
 	tty, ttyS, ttyRedir *os.File
+
+	readOnly bool
 }
 
 type program struct {

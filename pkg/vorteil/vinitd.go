@@ -163,6 +163,17 @@ func (v *Vinitd) PreSetup() error {
 		logError("can not setup mount options: %s", err.Error())
 	}
 
+	// mount /tmp as memory fs if read-only
+	if v.readOnly {
+		logDebug("mount /tmp filesystem")
+		flags := syscall.MS_NOATIME | syscall.MS_SILENT
+		flags |= syscall.MS_NODEV | syscall.MS_NOEXEC | syscall.MS_NOSUID
+		err := syscall.Mount("tmpfs", "/tmp", "tmpfs", uintptr(flags), "size=5M")
+		if err != nil {
+			logError("can create tmp folder as tmpfs: %s", err.Error())
+		}
+	}
+
 	err = growDisks()
 	if err != nil {
 		return err

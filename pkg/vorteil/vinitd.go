@@ -7,11 +7,13 @@ package vorteil
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -27,7 +29,16 @@ const (
 	vcfgSize   = 0x4000
 
 	forcedPoweroffTimeout = 3000
+
+	fluxDisk = "flux-data-disk"
+	fluxDir  = "/flux-data"
 )
+
+type networkSetting struct {
+	IP      string `json:"ip"`
+	Mask    string `json:"mask"`
+	Gateway string `json:"gw"`
+}
 
 // New returns a new vinitd object
 func New() *Vinitd {
@@ -46,6 +57,8 @@ func New() *Vinitd {
 }
 
 func isReadOnlyBootDisk(kernelargs string) bool {
+
+	logDebug("check read only: %v", kernelargs)
 
 	// check if it is set to ro
 	for _, o := range strings.Split(kernelargs, " ") {
@@ -168,9 +181,69 @@ func (v *Vinitd) PreSetup() error {
 		logDebug("mount /tmp filesystem")
 		flags := syscall.MS_NOATIME | syscall.MS_SILENT
 		flags |= syscall.MS_NODEV | syscall.MS_NOEXEC | syscall.MS_NOSUID
-		err := syscall.Mount("tmpfs", "/tmp", "tmpfs", uintptr(flags), "size=5M")
+		err = syscall.Mount("tmpfs", "/tmp", "tmpfs", uintptr(flags), "size=5M")
 		if err != nil {
 			logError("can create tmp folder as tmpfs: %s", err.Error())
+		}
+
+		// check if there is a second disk
+		files, err := ioutil.ReadDir("/sys/block")
+		if err == nil {
+
+			for _, f := range files {
+
+				// without loop and boot
+				if !strings.HasPrefix(f.Name(), "loop") &&
+					f.Name() != filepath.Base(v.diskname) {
+
+					logDebug("checking disk for flux: %v", f.Name())
+
+					// we are assuming gpt here
+					d, err := os.Open(filepath.Join("/dev", f.Name()))
+					if err != nil {
+						continue
+					}
+
+					// first partition, name offset
+					var pname [72]byte
+					_, err = d.ReadAt(pname[:], 1024+56)
+
+					if err != nil {
+						continue
+					}
+
+					// compare null-terminated strings
+					if fluxDisk == string(pname[:len(fluxDisk)]) {
+
+						disk := fmt.Sprintf("/dev/%s1", f.Name())
+						logDebug("mounting %s to %s", disk, fluxDir)
+						err = syscall.Mount(disk, fluxDir, "ext2", uintptr(flags), "barrier=0")
+						if err != nil {
+							SystemPanic("can not mount flux data disk: %v", err)
+						}
+
+						// change network setting
+						nw, err := ioutil.ReadFile(filepath.Join(fluxDir, "network.in"))
+						if err != nil {
+							SystemPanic("can not read flux network settings: %v", err)
+						}
+
+						var nws networkSetting
+						err = json.Unmarshal(nw, &nws)
+						if err != nil {
+							SystemPanic("can not read flux network settings json: %v", err)
+						}
+
+						v.vcfg.Networks[0].IP = nws.IP
+						v.vcfg.Networks[0].Gateway = nws.Gateway
+						v.vcfg.Networks[0].Mask = nws.Mask
+
+						instantShutdown = true
+
+					}
+				}
+			}
+
 		}
 	}
 
@@ -298,7 +371,7 @@ func (v *Vinitd) PostSetup() error {
 	go func() {
 		if len(v.vcfg.Logging) > 0 && !v.readOnly {
 			v.startLogging()
-		} else {
+		} else if len(v.vcfg.Logging) > 0 {
 			logWarn("filesystem read-only, can not start logging")
 		}
 		wg.Done()

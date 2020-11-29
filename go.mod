@@ -15,6 +15,7 @@ require (
 	github.com/miekg/dns v1.1.31 // indirect
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/rakyll/statik v0.1.7
+	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.6.1
 	github.com/t-tomalak/logrus-easy-formatter v0.0.0-20190827215021-c074f06c5816

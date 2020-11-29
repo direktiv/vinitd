@@ -35,6 +35,8 @@ const (
 var (
 	procs    map[uint32]uint32
 	internal map[uint32]string
+
+	instantShutdown = false
 )
 
 // ProcEventHeader ...
@@ -102,9 +104,11 @@ func shutdown(cmd, timeout int) {
 
 	time.Sleep(time.Duration(timeout) * time.Millisecond)
 
-	for i := 3; i > 0; i-- {
-		logAlways(fmt.Sprintf("shutting down in %d...", i))
-		time.Sleep(1 * time.Second)
+	if !instantShutdown {
+		for i := 3; i > 0; i-- {
+			logAlways(fmt.Sprintf("shutting down in %d...", i))
+			time.Sleep(1 * time.Second)
+		}
 	}
 
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("s"), 0644)
@@ -118,7 +122,13 @@ func shutdown(cmd, timeout int) {
 		flushDisk(p)
 	}
 
-	syscall.Reboot(cmd)
+	// firecracker needs reboot for poweroff
+	if instantShutdown {
+		syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
+	} else {
+		syscall.Reboot(cmd)
+	}
+
 }
 
 func listenToProcesses(progs []*program) {

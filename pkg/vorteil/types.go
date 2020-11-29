@@ -122,7 +122,8 @@ type Vinitd struct {
 
 	tty, ttyS, ttyRedir *os.File
 
-	readOnly bool
+	readOnly        bool
+	instantShutdown bool
 }
 
 type program struct {

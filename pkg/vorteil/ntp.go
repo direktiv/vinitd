@@ -28,6 +28,12 @@ func setupChronyD(ntps []string) error {
 
 	logDebug("ntp servers found: %d", len(ntps))
 
+	// if there is a chrony cfg file, we leave it
+	if _, err := os.Stat(chronydCfgPath); err == nil {
+		logAlways("chrony config file found")
+		return startChrony()
+	}
+
 	// If server was found start chronyd
 	if len(ntps) != 0 {
 
@@ -50,17 +56,19 @@ func setupChronyD(ntps []string) error {
 
 		logDebug("ntp config:\n %s", chronydCfgData)
 
-		// Start ChronyD
-		chronydCMD := exec.Command("/vorteil/chronyd") // set args to []string{"-l", "/etc/chrony.log"}... to save logs
-		chronydCMD.SysProcAttr = &syscall.SysProcAttr{
-			Credential: &syscall.Credential{Uid: uint32(rootID), Gid: uint32(rootID)},
-		}
-
-		err := chronydCMD.Start()
-		if err != nil {
-			return fmt.Errorf("could not execute chronyd: %v", err)
-		}
+		startChrony()
 	}
 
 	return nil
+}
+
+func startChrony() error {
+	// Start ChronyD
+	chronydCMD := exec.Command("/vorteil/chronyd") // set args to []string{"-l", "/etc/chrony.log"}... to save logs
+	chronydCMD.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{Uid: uint32(rootID), Gid: uint32(rootID)},
+	}
+
+	return chronydCMD.Start()
+
 }

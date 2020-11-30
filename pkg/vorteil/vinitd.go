@@ -31,8 +31,7 @@ const (
 
 	forcedPoweroffTimeout = 3000
 
-	fluxDisk = "flux-data-disk"
-	fluxDir  = "/flux-data"
+	fluxDir = "/flux-data"
 )
 
 type networkSetting struct {

@@ -105,9 +105,9 @@ func (p *program) waitForApp(cmd *exec.Cmd) {
 	err := cmd.Wait()
 	if err != nil {
 		logDebug("error while waiting: %s", err.Error())
-		return
+	} else {
+		logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 	}
-	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 
 	// just in case call it again
 	handleExit(p.vinitd.programs)
@@ -603,7 +603,7 @@ func (v *Vinitd) launchProgram(np *program) error {
 	return nil
 }
 
-func reapProcs() {
+func reapProcs(programs []*program) {
 
 	pids := make(reap.PidCh, 1)
 	errors := make(reap.ErrorCh, 1)
@@ -614,6 +614,15 @@ func reapProcs() {
 		select {
 		case pid := <-pids:
 			logDebug("process %d finished", pid)
+			for _, p := range programs {
+
+				if p.cmd != nil && p.cmd.Process != nil && p.cmd.Process.Pid == pid {
+					p.reaper = true
+					break
+				}
+
+			}
+			handleExit(programs)
 		case err := <-errors:
 			logError("error wait pid %s", err.Error())
 		}
@@ -632,7 +641,7 @@ func (v *Vinitd) Launch() error {
 	errors := make(chan error)
 	wgDone := make(chan bool)
 
-	go reapProcs()
+	go reapProcs(v.programs)
 
 	go listenToProcesses(v.programs)
 

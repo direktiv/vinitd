@@ -7,6 +7,7 @@ package vorteil
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -39,6 +40,9 @@ type networkSetting struct {
 	Mask    string `json:"mask"`
 	Gateway string `json:"gw"`
 }
+
+// flux disks
+var uuidPlain = [16]byte{0x7d, 0x44, 0x48, 0x40, 0x9d, 0xc0, 0x11, 0xd1, 0xb2, 0x45, 0x5f, 0xfd, 0xce, 0x74, 0xfa, 0xd3}
 
 // New returns a new vinitd object
 func New() *Vinitd {
@@ -204,16 +208,15 @@ func (v *Vinitd) PreSetup() error {
 						continue
 					}
 
-					// first partition, name offset
-					var pname [72]byte
-					_, err = d.ReadAt(pname[:], 1024+56)
+					// first disk uid offset in lba 1
+					var puid [16]byte
+					_, err = d.ReadAt(puid[:], 512+56)
 
 					if err != nil {
 						continue
 					}
 
-					// compare null-terminated strings
-					if fluxDisk == string(pname[:len(fluxDisk)]) {
+					if bytes.Compare(uuidPlain[:], puid[:]) == 0 {
 
 						disk := fmt.Sprintf("/dev/%s1", f.Name())
 						logDebug("mounting %s to %s", disk, fluxDir)

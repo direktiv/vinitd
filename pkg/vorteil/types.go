@@ -138,6 +138,8 @@ type program struct {
 	cmd *exec.Cmd
 
 	vinitd *Vinitd
+
+	reaper bool
 }
 
 // GPTHeader for disk expansion

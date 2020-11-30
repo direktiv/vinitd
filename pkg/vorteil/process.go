@@ -192,7 +192,7 @@ func handleExit(progs []*program) {
 		// has not been started or stil running
 		if p.cmd == nil {
 			count++
-		} else if p.cmd != nil && p.cmd.ProcessState == nil {
+		} else if p.cmd != nil && p.cmd.ProcessState == nil && !p.reaper { // if this has been reaped
 			count++
 		} else if p.cmd != nil && p.cmd.ProcessState != nil && !p.cmd.ProcessState.Exited() {
 			count++

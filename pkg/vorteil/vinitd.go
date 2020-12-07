@@ -31,7 +31,9 @@ const (
 
 	forcedPoweroffTimeout = 3000
 
-	fluxDir = "/flux-data"
+	fluxDir   = "/flux-data"
+	fluxError = "error.out"
+	fluxLog   = "log.out"
 )
 
 type networkSetting struct {
@@ -235,6 +237,16 @@ func (v *Vinitd) PreSetup() error {
 						if err != nil {
 							SystemPanic("can not read flux network settings json: %v", err)
 						}
+
+						cl := func(name string) {
+							_, err = os.OpenFile(filepath.Join(fluxDir, name), os.O_CREATE|os.O_RDWR, 0755)
+							if err != nil {
+								SystemPanic("can not create error.log: %v", err)
+							}
+						}
+
+						cl(fluxError)
+						cl(fluxError)
 
 						v.vcfg.Networks[0].IP = nws.IP
 						v.vcfg.Networks[0].Gateway = nws.Gateway

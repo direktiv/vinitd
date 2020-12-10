@@ -61,14 +61,19 @@ func New() *Vinitd {
 
 }
 
-func isReadOnlyBootDisk(kernelargs string) bool {
+func hasCmdLineString(ss string) bool {
 
-	logDebug("check read only: %v", kernelargs)
+	cmd, err := ioutil.ReadFile("/proc/cmdline")
+	if err != nil {
+		return false
+	}
+	logDebug("cmdline: %s", string(cmd))
+	logDebug("check cmdline for string: %v", ss)
 
 	// check if it is set to ro
-	for _, o := range strings.Split(kernelargs, " ") {
-		if o == "ro" {
-			logDebug("read-only filesystem")
+	for _, o := range strings.Split(string(cmd), " ") {
+		if o == ss {
+			logDebug("found string in cmdline %s", ss)
 			return true
 		}
 	}
@@ -172,7 +177,7 @@ func (v *Vinitd) PreSetup() error {
 		return err
 	}
 
-	v.readOnly = isReadOnlyBootDisk(v.vcfg.System.KernelArgs)
+	v.readOnly = hasCmdLineString("ro")
 
 	// on error we can proceed here
 	// has performance impact but can still run
@@ -182,7 +187,8 @@ func (v *Vinitd) PreSetup() error {
 	}
 
 	// mount /tmp as memory fs if read-only
-	if v.readOnly {
+	if hasCmdLineString("fluxsystem") {
+
 		logDebug("mount /tmp filesystem")
 		flags := syscall.MS_NOATIME | syscall.MS_SILENT
 		flags |= syscall.MS_NODEV | syscall.MS_NOEXEC | syscall.MS_NOSUID

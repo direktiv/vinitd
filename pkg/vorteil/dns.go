@@ -6,6 +6,7 @@
 package vorteil
 
 import (
+	"fmt"
 	"net"
 	"strings"
 
@@ -29,6 +30,12 @@ func (v *Vinitd) startDNS(dnsAddr string, verbose bool) error {
 	var dns []string
 
 	for _, d := range v.vcfg.System.DNS {
+
+		// replace envs
+		for k, val := range v.hypervisorInfo.envs {
+			d = strings.ReplaceAll(d, fmt.Sprintf(replaceString, k), val)
+		}
+
 		ip := net.ParseIP(d)
 		if ip != nil {
 			v.dns = append(v.dns, ip)
@@ -48,7 +55,7 @@ func (v *Vinitd) startDNS(dnsAddr string, verbose bool) error {
 	}
 
 	// don't start
-	if (len(dns) == 0) {
+	if len(dns) == 0 {
 		return nil
 	}
 

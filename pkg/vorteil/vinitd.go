@@ -364,6 +364,7 @@ func (v *Vinitd) Setup() error {
 func (v *Vinitd) PostSetup() error {
 
 	// start a DNS on 127.0.0.1
+	basicEnv(v)
 	err := v.startDNS(defaultDNSAddr, true)
 
 	// we might be able to run

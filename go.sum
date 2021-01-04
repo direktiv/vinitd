@@ -860,6 +860,8 @@ github.com/vorteil/vorteil v0.0.0-20210104005441-2018c99bbdf5 h1:2eLDHV0uW2IH6Vw
 github.com/vorteil/vorteil v0.0.0-20210104005441-2018c99bbdf5/go.mod h1:hCnSQJSsmmV4VOp1/wI3i68+HZHM5Uus68gxE/PlLVg=
 github.com/vorteil/vorteil v0.0.0-20210104015056-e8d7ccbf7454 h1:fMbXcL3i1H0i8+GNCT7ugdRMs03CCJkPenE56rQRUNU=
 github.com/vorteil/vorteil v0.0.0-20210104015056-e8d7ccbf7454/go.mod h1:hCnSQJSsmmV4VOp1/wI3i68+HZHM5Uus68gxE/PlLVg=
+github.com/vorteil/vorteil v0.0.0-20210104040243-9ef31da53e7e h1:mCXpVtgqwrhYT2tzAHB8khk+x/QN9P0ZVNW9XfIPkUk=
+github.com/vorteil/vorteil v0.0.0-20210104040243-9ef31da53e7e/go.mod h1:hCnSQJSsmmV4VOp1/wI3i68+HZHM5Uus68gxE/PlLVg=
 github.com/willf/bitset v1.1.11-0.20200630133818-d5bec3311243/go.mod h1:RjeCKbqT1RxIR/KWY6phxZiaY1IyutSBfGjNPySAYV4=
 github.com/xanzy/go-gitlab v0.31.0/go.mod h1:sPLojNBn68fMUWSxIJtdVVIP8uSBYqesTfDUseX11Ug=
 github.com/xanzy/go-gitlab v0.32.0/go.mod h1:sPLojNBn68fMUWSxIJtdVVIP8uSBYqesTfDUseX11Ug=

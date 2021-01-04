@@ -111,6 +111,9 @@ func shutdown(cmd, timeout int) {
 
 	logAlways("shutting down system")
 
+	// Fixed Timeout - Allows for shutdown logs to be printed
+	time.Sleep(250 * time.Millisecond)
+
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("s"), 0644)
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("u"), 0644)
 
@@ -138,10 +141,12 @@ func sendTerminateSignals() {
 		go func(np *program, sig syscall.Signal) {
 			defer wg.Done()
 
-			if np.cmd.ProcessState == nil || np.cmd.ProcessState.Exited() {
+			// if program is finished skip
+			if np.isDone {
 				return
 			}
 
+			// send terminate to program
 			if err := np.cmd.Process.Signal(sig); err != nil {
 				logError("could not send terminate signal program %v, error: %v", np.cmd.Process.Pid, err)
 			}
@@ -151,6 +156,7 @@ func sendTerminateSignals() {
 		}(p, termSig)
 	}
 
+	// Wait for all processes to be terminated, or continue after timeout
 	c := make(chan struct{})
 	go func() {
 		defer close(c)

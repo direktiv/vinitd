@@ -110,6 +110,8 @@ func (p *program) waitForApp(cmd *exec.Cmd) {
 	// Returns exit status
 	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 
+	p.isDone = true
+
 	// just in case call it again
 	handleExit(p.vinitd.programs)
 }

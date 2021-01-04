@@ -134,6 +134,7 @@ type Vinitd struct {
 type program struct {
 	path     string
 	vcfgProg vcfg.Program
+	isDone   bool
 
 	env  []string
 	args []string

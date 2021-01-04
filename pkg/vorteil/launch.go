@@ -605,7 +605,16 @@ func (v *Vinitd) launchProgram(np *program) error {
 
 	// Register Program Terminate Wait Signal
 	terminateSignals[np], err = p.Terminate.Signal()
-	return err
+
+	// Backwards Compatability
+	//	- Should never happen unless old vorteil binary was used with new kernel
+	if err != nil {
+		logWarn("failed setting up terminate signal: %v. This suggests vorteil binary is out of date", err)
+		// Revert to SIGTERM
+		terminateSignals[np] = syscall.SIGTERM
+	}
+
+	return nil
 }
 
 func reapProcs(programs []*program) {

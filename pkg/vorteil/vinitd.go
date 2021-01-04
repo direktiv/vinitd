@@ -269,6 +269,13 @@ func (v *Vinitd) PreSetup() error {
 
 	terminateWait = time.Duration(v.vcfg.System.TerminateWait) * time.Millisecond
 
+	// Backwards Compatability
+	//	- Should never happen unless old vorteil binary was used with new kernel
+	if terminateWait == 0 {
+		logWarn("system.terminate-wait is empty. This suggests vorteil binary is out of date")
+		terminateWait = 3000 * time.Millisecond
+	}
+
 	return nil
 
 }

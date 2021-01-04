@@ -461,6 +461,23 @@ func probe(creq cloudReq, v *Vinitd) {
 	if err != nil {
 		logDebug("error requesting metadata vorteil: %s", err.Error())
 	} else {
+
+		// trying to marshal json, if it is key/value we will use it as envs
+		// otherwise we add it as USERDATA
+		var envs map[string]string
+		err := json.Unmarshal([]byte(userdata), &envs)
+
+		logDebug("setting metadata userdata to %s", userdata)
+		v.hypervisorInfo.envs[envUserData] = userdata
+
+		// set these as envs
+		if err == nil {
+			for key, value := range envs {
+				logDebug("setting metadata userdata to %s %v", key, value)
+				v.hypervisorInfo.envs[key] = value
+			}
+		}
+
 		logDebug("setting metadata userdata to %s", userdata)
 		v.hypervisorInfo.envs[envUserData] = userdata
 	}

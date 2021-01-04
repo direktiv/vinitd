@@ -30,7 +30,8 @@ const (
 	logAll    = "all"
 )
 
-func addLogginOutput(sb *strings.Builder, logEntry vcfg.Logging, match string) {
+func addLogginOutput(sb *strings.Builder, logEntry vcfg.Logging,
+	match string, envs map[string]string) {
 	sb.WriteString("[OUTPUT]\n")
 
 	for _, l := range logEntry.Config {
@@ -38,6 +39,18 @@ func addLogginOutput(sb *strings.Builder, logEntry vcfg.Logging, match string) {
 		if len(s) != 2 {
 			logError("can not add logging output for %s", s)
 		}
+
+		// replace variables
+		if strings.HasPrefix(s[1], "$") {
+			env := s[1][1:]
+			for k, e := range envs {
+				if k == env {
+					logDebug("replacing $%s for %s", env, e)
+					s[1] = e
+				}
+			}
+		}
+
 		sb.WriteString(fmt.Sprintf("    %s %s\n", s[0], s[1]))
 	}
 
@@ -159,23 +172,23 @@ func (v *Vinitd) startLogging() {
 		case logSystem:
 			{
 				addSystemLogging(&str, v.ifcs)
-				addLogginOutput(&str, l, "vsystem")
+				addLogginOutput(&str, l, "vsystem", v.hypervisorInfo.envs)
 			}
 		case logKernel:
 			{
 				addKernelLogging(&str)
-				addLogginOutput(&str, l, "vkernel")
+				addLogginOutput(&str, l, "vkernel", v.hypervisorInfo.envs)
 			}
 		case logStdout:
 			{
 				addStdoutLogging(&str)
-				addLogginOutput(&str, l, "vstdout")
+				addLogginOutput(&str, l, "vstdout", v.hypervisorInfo.envs)
 				redir()
 			}
 		case logProgs:
 			{
 				addProgLogging(&str, v.programs)
-				addLogginOutput(&str, l, "vprog")
+				addLogginOutput(&str, l, "vprog", v.hypervisorInfo.envs)
 			}
 		case logAll:
 			{
@@ -183,7 +196,7 @@ func (v *Vinitd) startLogging() {
 				addKernelLogging(&str)
 				addStdoutLogging(&str)
 				addProgLogging(&str, v.programs)
-				addLogginOutput(&str, l, "*")
+				addLogginOutput(&str, l, "*", v.hypervisorInfo.envs)
 				redir()
 			}
 		}

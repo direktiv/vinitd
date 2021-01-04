@@ -379,6 +379,7 @@ func (v *Vinitd) PostSetup() error {
 	var wg sync.WaitGroup
 
 	wg.Add(5)
+	cread := make(chan bool)
 
 	go func() {
 		setupNFS(v.vcfg.NFS)
@@ -387,6 +388,8 @@ func (v *Vinitd) PostSetup() error {
 
 	go func() {
 		if len(v.vcfg.Logging) > 0 && !v.readOnly {
+			// waiting for the cloud metadata
+			<-cread
 			v.startLogging()
 		} else if len(v.vcfg.Logging) > 0 {
 			logWarn("filesystem read-only, can not start logging")
@@ -397,18 +400,21 @@ func (v *Vinitd) PostSetup() error {
 	// get cloud information
 	go func() {
 
+		defer func() {
+			wg.Done()
+			cread <- false
+		}()
+
 		bios, err := ioutil.ReadFile("/sys/devices/virtual/dmi/id/bios_vendor")
 		if err != nil {
 			logWarn("can not read bios vendor")
 			v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hvUnknown, cpUnknown
 			basicEnv(v)
-			wg.Done()
 			return
 		}
 
 		v.hypervisorInfo.hypervisor, v.hypervisorInfo.cloud = hypervisorGuess(v, string(bios))
 		fetchCloudMetadata(v)
-		wg.Done()
 
 	}()
 

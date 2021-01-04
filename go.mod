@@ -20,6 +20,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/t-tomalak/logrus-easy-formatter v0.0.0-20190827215021-c074f06c5816
 	github.com/vishvananda/netlink v1.1.0
-	github.com/vorteil/vorteil v0.0.0-20200918040815-3e9233b3cf35
+	github.com/vorteil/vorteil v0.0.0-20210104015056-e8d7ccbf7454
 	golang.org/x/sys v0.0.0-20200817155316-9781c653f443
 )

@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -100,16 +101,15 @@ func shutdown(cmd, timeout int) {
 
 	logAlways("shutting down applications")
 
+	if !instantShutdown {
+		sendTerminateSignals()
+	}
+
 	killAll()
 
 	time.Sleep(time.Duration(timeout) * time.Millisecond)
 
-	if !instantShutdown {
-		for i := 3; i > 0; i-- {
-			logAlways(fmt.Sprintf("shutting down in %d...", i))
-			time.Sleep(1 * time.Second)
-		}
-	}
+	logAlways("shutting down system")
 
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("s"), 0644)
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("u"), 0644)
@@ -129,6 +129,39 @@ func shutdown(cmd, timeout int) {
 		syscall.Reboot(cmd)
 	}
 
+}
+
+func sendTerminateSignals() {
+	var wg sync.WaitGroup
+	for p, termSig := range terminateSignals {
+		wg.Add(1)
+		go func(np *program, sig syscall.Signal) {
+			defer wg.Done()
+
+			if np.cmd.ProcessState == nil || np.cmd.ProcessState.Exited() {
+				return
+			}
+
+			if err := np.cmd.Process.Signal(sig); err != nil {
+				logError("could not send terminate signal program %v, error: %v", np.cmd.Process.Pid, err)
+			}
+
+			// Wait for process to be terminated...
+			np.cmd.Process.Wait()
+		}(p, termSig)
+	}
+
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		logAlways("applications terminated")
+	case <-time.After(terminateWait):
+		logWarn("could not terminate all applications before timeout")
+	}
 }
 
 func listenToProcesses(progs []*program) {

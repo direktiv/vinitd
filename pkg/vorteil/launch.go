@@ -105,9 +105,10 @@ func (p *program) waitForApp(cmd *exec.Cmd) {
 	err := cmd.Wait()
 	if err != nil {
 		logDebug("error while waiting: %s", err.Error())
-	} else {
-		logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 	}
+
+	// Returns exit status
+	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 
 	// just in case call it again
 	handleExit(p.vinitd.programs)
@@ -600,7 +601,9 @@ func (v *Vinitd) launchProgram(np *program) error {
 		return err
 	}
 
-	return nil
+	// Register Program Terminate Wait Signal
+	terminateSignals[np], err = p.Terminate.Signal()
+	return err
 }
 
 func reapProcs(programs []*program) {

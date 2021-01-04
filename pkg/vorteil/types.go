@@ -9,6 +9,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"syscall"
+	"time"
 
 	"github.com/vorteil/vorteil/pkg/vcfg"
 )
@@ -75,6 +77,9 @@ var (
 	}
 
 	initStatus = statusSetup
+
+	terminateSignals = map[*program]syscall.Signal{}
+	terminateWait    = time.Duration(0)
 )
 
 const (

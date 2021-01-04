@@ -267,6 +267,8 @@ func (v *Vinitd) PreSetup() error {
 	}
 	logDebug("pre-setup finished successfully")
 
+	terminateWait = time.Duration(v.vcfg.System.TerminateWait) * time.Millisecond
+
 	return nil
 
 }

@@ -136,6 +136,8 @@ func shutdown(cmd, timeout int) {
 
 func sendTerminateSignals() {
 	var wg sync.WaitGroup
+
+	// loop through program's terminate signals
 	for p, termSig := range terminateSignals {
 		wg.Add(1)
 		go func(np *program, sig syscall.Signal) {

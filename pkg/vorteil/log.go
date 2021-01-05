@@ -57,7 +57,7 @@ func logWarn(format string, values ...interface{}) {
 // SystemPanic prints error message and shuts down the system
 func SystemPanic(format string, values ...interface{}) {
 	logger.Errorf(fmt.Sprintf(format, values...))
-	shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, forcedPoweroffTimeout)
+	shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 }
 
 func logError(format string, values ...interface{}) {

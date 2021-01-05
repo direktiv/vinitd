@@ -105,9 +105,15 @@ func (p *program) waitForApp(cmd *exec.Cmd) {
 	err := cmd.Wait()
 	if err != nil {
 		logDebug("error while waiting: %s", err.Error())
-	} else {
-		logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
 	}
+
+	if cmd.Process != nil {
+		// Returns exit status
+		logAlways("program[%d] pid[%d] finished with %s", p.progIndex, cmd.Process.Pid, cmd.ProcessState.String())
+	}
+
+	// Close channel to indicate program has exited
+	close(p.exitChannel)
 
 	// just in case call it again
 	handleExit(p.vinitd.programs)
@@ -540,13 +546,15 @@ func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 	return newEnvs
 }
 
-func (v *Vinitd) prepProgram(p vcfg.Program) error {
+func (v *Vinitd) prepProgram(p vcfg.Program, pIndex int) error {
 
 	// we can add the program to the list now
 	np := &program{
-		vcfgProg: p,
-		cmd:      nil,
-		vinitd:   v,
+		vcfgProg:    p,
+		cmd:         nil,
+		vinitd:      v,
+		exitChannel: make(chan interface{}),
+		progIndex:   pIndex,
 	}
 
 	v.programs = append(v.programs, np)
@@ -598,6 +606,17 @@ func (v *Vinitd) launchProgram(np *program) error {
 
 		}
 		return err
+	}
+
+	// Register Program Terminate Wait Signal
+	terminateSignals[np], err = p.Terminate.Signal()
+
+	// Backwards Compatability
+	//	- Should never happen unless old vorteil binary was used with new kernel
+	if err != nil {
+		logWarn("failed setting up terminate signal: %v. This suggests vorteil binary is out of date", err)
+		// Revert to SIGTERM
+		terminateSignals[np] = syscall.SIGTERM
 	}
 
 	return nil

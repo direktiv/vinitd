@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -90,7 +91,7 @@ func killAll() {
 basically just calling on of these :
 LINUX_REBOOT_CMD_POWER_OFF       = 0x4321fedc
 LINUX_REBOOT_CMD_RESTART         = 0x1234567 */
-func shutdown(cmd, timeout int) {
+func shutdown(cmd int) {
 
 	if initStatus == statusPoweroff {
 		return
@@ -100,16 +101,16 @@ func shutdown(cmd, timeout int) {
 
 	logAlways("shutting down applications")
 
+	if !instantShutdown {
+		sendTerminateSignals()
+	}
+
 	killAll()
 
-	time.Sleep(time.Duration(timeout) * time.Millisecond)
+	logAlways("shutting down system")
 
-	if !instantShutdown {
-		for i := 3; i > 0; i-- {
-			logAlways(fmt.Sprintf("shutting down in %d...", i))
-			time.Sleep(1 * time.Second)
-		}
-	}
+	// Fixed Timeout - Allows for shutdown logs to be printed
+	time.Sleep(250 * time.Millisecond)
 
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("s"), 0644)
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("u"), 0644)
@@ -129,6 +130,48 @@ func shutdown(cmd, timeout int) {
 		syscall.Reboot(cmd)
 	}
 
+}
+
+func sendTerminateSignals() {
+	var wg sync.WaitGroup
+
+	// loop through program's terminate signals
+	for p, termSig := range terminateSignals {
+		wg.Add(1)
+		go func(np *program, sig syscall.Signal) {
+			defer wg.Done()
+
+			// if program is finished skip
+			if np.cmd == nil || np.cmd.Process == nil || np.cmd.ProcessState.ExitCode() >= 0 {
+				return
+			}
+
+			logAlways("program[%d] pid[%d] - sending signal '%s'", np.progIndex, np.cmd.Process.Pid, sig)
+
+			// send terminate to program
+			if err := np.cmd.Process.Signal(sig); err != nil {
+				logError("could not send terminate signal program %v, error: %v", np.cmd.Process.Pid, err)
+			}
+
+			// Wait for process to be exit...
+			select {
+			case <-np.exitChannel:
+			}
+		}(p, termSig)
+	}
+
+	// Wait for all processes to be terminated, or continue after timeout
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		logAlways("applications terminated")
+	case <-time.After(terminateWait):
+		logWarn("could not terminate all applications before timeout")
+	}
 }
 
 func listenToProcesses(progs []*program) {
@@ -204,7 +247,7 @@ func handleExit(progs []*program) {
 		if initStatus != statusPoweroff {
 			logAlways("no programs still running")
 		}
-		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
+		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 	}
 
 }

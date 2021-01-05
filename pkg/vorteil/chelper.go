@@ -19,12 +19,12 @@ import (
 
 //export RebootForTools
 func RebootForTools() {
-	shutdown(syscall.LINUX_REBOOT_CMD_RESTART, 0)
+	shutdown(syscall.LINUX_REBOOT_CMD_RESTART)
 }
 
 //export ShutdownForTools
 func ShutdownForTools() {
-	shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
+	shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 }
 
 //export UptimeForTools

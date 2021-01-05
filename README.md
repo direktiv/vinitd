@@ -69,7 +69,7 @@ Vinitd runs through four stages starting with low level tasks like setting up st
 To build and test changes in vinitd it needs to be part of a bundle. To make this process easier there is a dedicated make target available to build a bundle with the newly build vinitd.
 
 ```sh
-make BUNDLE=20.9.8 VERSION=88.88.1 TARGET=~/.vorteild/kernels/watch bundle
+make BUNDLE=20.9.8 VERSION=88.88.1 TARGET=~/.vorteil/kernels/watch bundle
 vorteil run /path/to/my/app --vm.kernel=88.88.1
 ```
 

@@ -107,10 +107,13 @@ func (p *program) waitForApp(cmd *exec.Cmd) {
 		logDebug("error while waiting: %s", err.Error())
 	}
 
-	// Returns exit status
-	logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
+	if cmd.Process != nil {
+		// Returns exit status
+		logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
+	}
 
-	p.isDone = true
+	// Close channel to indicate program has exited
+	close(p.exitChannel)
 
 	// just in case call it again
 	handleExit(p.vinitd.programs)
@@ -547,9 +550,10 @@ func (v *Vinitd) prepProgram(p vcfg.Program) error {
 
 	// we can add the program to the list now
 	np := &program{
-		vcfgProg: p,
-		cmd:      nil,
-		vinitd:   v,
+		vcfgProg:    p,
+		cmd:         nil,
+		vinitd:      v,
+		exitChannel: make(chan interface{}),
 	}
 
 	v.programs = append(v.programs, np)

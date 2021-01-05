@@ -132,9 +132,9 @@ type Vinitd struct {
 }
 
 type program struct {
-	path     string
-	vcfgProg vcfg.Program
-	isDone   bool
+	path        string
+	vcfgProg    vcfg.Program
+	exitChannel chan interface{}
 
 	env  []string
 	args []string

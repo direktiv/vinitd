@@ -28,7 +28,7 @@ func listenPowerLoop(epfd int, events [1]unix.EpollEvent) {
 
 		if n == 1 && events[0].Events&unix.EPOLLIN == unix.EPOLLIN {
 			// we don't check, it has to be poweroff
-			shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
+			shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 		}
 	}
 }

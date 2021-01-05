@@ -471,9 +471,9 @@ func waitForSignal() {
 
 	logDebug("got signal %d", sig)
 	if sig == syscall.SIGPWR {
-		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
+		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 	} else {
-		shutdown(syscall.LINUX_REBOOT_CMD_RESTART, 0)
+		shutdown(syscall.LINUX_REBOOT_CMD_RESTART)
 	}
 
 }

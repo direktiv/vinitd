@@ -91,7 +91,7 @@ func killAll() {
 basically just calling on of these :
 LINUX_REBOOT_CMD_POWER_OFF       = 0x4321fedc
 LINUX_REBOOT_CMD_RESTART         = 0x1234567 */
-func shutdown(cmd, timeout int) {
+func shutdown(cmd int) {
 
 	if initStatus == statusPoweroff {
 		return
@@ -106,8 +106,6 @@ func shutdown(cmd, timeout int) {
 	}
 
 	killAll()
-
-	time.Sleep(time.Duration(timeout) * time.Millisecond)
 
 	logAlways("shutting down system")
 
@@ -144,17 +142,21 @@ func sendTerminateSignals() {
 			defer wg.Done()
 
 			// if program is finished skip
-			if np.isDone {
+			if np.cmd == nil || np.cmd.Process == nil || np.cmd.ProcessState.ExitCode() >= 0 {
 				return
 			}
+
+			logDebug("sending signal '%s' to process pid %v", sig, np.cmd.Process.Pid)
 
 			// send terminate to program
 			if err := np.cmd.Process.Signal(sig); err != nil {
 				logError("could not send terminate signal program %v, error: %v", np.cmd.Process.Pid, err)
 			}
 
-			// Wait for process to be terminated...
-			np.cmd.Process.Wait()
+			// Wait for process to be exit...
+			select {
+			case <-np.exitChannel:
+			}
 		}(p, termSig)
 	}
 
@@ -245,7 +247,7 @@ func handleExit(progs []*program) {
 		if initStatus != statusPoweroff {
 			logAlways("no programs still running")
 		}
-		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
+		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 	}
 
 }

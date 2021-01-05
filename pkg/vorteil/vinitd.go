@@ -70,8 +70,8 @@ func hasCmdLineString(ss string) bool {
 	logDebug("cmdline: %s", string(cmd))
 	logDebug("check cmdline for string: %v", ss)
 
-	// check if it is set to ro
-	for _, o := range strings.Split(string(cmd), " ") {
+	// check if it is set to ro, remove newline from the end before splitting
+	for _, o := range strings.Split(strings.TrimSuffix(string(cmd), "\n"), " ") {
 		if o == ss {
 			logDebug("found string in cmdline %s", ss)
 			return true
@@ -108,6 +108,12 @@ func setupMountOptions(diskname string, readOnly bool) error {
 
 		// MS_LAZYTIME 1 << 25
 		flags := syscall.MS_REMOUNT | syscall.MS_NOATIME | (1 << 25)
+
+		// in record mode we need  the atime
+		if hasCmdLineString("recordmode") {
+			logAlways("recordmode, skip noatime")
+			flags = syscall.MS_REMOUNT
+		}
 
 		if readOnly {
 			flags |= syscall.MS_RDONLY

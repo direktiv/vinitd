@@ -360,8 +360,8 @@ func (v *Vinitd) Setup() error {
 		SystemPanic("system setup failed: %s", err.Error())
 	}
 
-	for _, p := range v.vcfg.Programs {
-		v.prepProgram(p)
+	for i, p := range v.vcfg.Programs {
+		v.prepProgram(p, i)
 	}
 
 	logDebug("system setup successful")

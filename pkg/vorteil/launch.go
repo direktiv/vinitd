@@ -109,7 +109,7 @@ func (p *program) waitForApp(cmd *exec.Cmd) {
 
 	if cmd.Process != nil {
 		// Returns exit status
-		logDebug("process %d finished with %s", cmd.Process.Pid, cmd.ProcessState.String())
+		logAlways("program[%d] pid[%d] finished with %s", p.progIndex, cmd.Process.Pid, cmd.ProcessState.String())
 	}
 
 	// Close channel to indicate program has exited
@@ -546,7 +546,7 @@ func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 	return newEnvs
 }
 
-func (v *Vinitd) prepProgram(p vcfg.Program) error {
+func (v *Vinitd) prepProgram(p vcfg.Program, pIndex int) error {
 
 	// we can add the program to the list now
 	np := &program{
@@ -554,6 +554,7 @@ func (v *Vinitd) prepProgram(p vcfg.Program) error {
 		cmd:         nil,
 		vinitd:      v,
 		exitChannel: make(chan interface{}),
+		progIndex:   pIndex,
 	}
 
 	v.programs = append(v.programs, np)

@@ -146,7 +146,7 @@ func sendTerminateSignals() {
 				return
 			}
 
-			logDebug("sending signal '%s' to process pid %v", sig, np.cmd.Process.Pid)
+			logAlways("program[%d] pid[%d] - sending signal '%s'", np.progIndex, np.cmd.Process.Pid, sig)
 
 			// send terminate to program
 			if err := np.cmd.Process.Signal(sig); err != nil {

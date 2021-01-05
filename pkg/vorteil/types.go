@@ -134,6 +134,7 @@ type Vinitd struct {
 type program struct {
 	path        string
 	vcfgProg    vcfg.Program
+	progIndex   int
 	exitChannel chan interface{}
 
 	env  []string

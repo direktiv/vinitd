@@ -273,6 +273,15 @@ func (v *Vinitd) PreSetup() error {
 	}
 	logDebug("pre-setup finished successfully")
 
+	terminateWait = time.Duration(v.vcfg.System.TerminateWait) * time.Millisecond
+
+	// Backwards Compatability
+	//	- Should never happen unless old vorteil binary was used with new kernel
+	if terminateWait == 0 {
+		logWarn("system.terminate-wait is empty. This suggests vorteil binary is out of date")
+		terminateWait = 3000 * time.Millisecond
+	}
+
 	return nil
 
 }
@@ -357,8 +366,8 @@ func (v *Vinitd) Setup() error {
 		SystemPanic("system setup failed: %s", err.Error())
 	}
 
-	for _, p := range v.vcfg.Programs {
-		v.prepProgram(p)
+	for i, p := range v.vcfg.Programs {
+		v.prepProgram(p, i)
 	}
 
 	logDebug("system setup successful")
@@ -468,9 +477,9 @@ func waitForSignal() {
 
 	logDebug("got signal %d", sig)
 	if sig == syscall.SIGPWR {
-		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF, 0)
+		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 	} else {
-		shutdown(syscall.LINUX_REBOOT_CMD_RESTART, 0)
+		shutdown(syscall.LINUX_REBOOT_CMD_RESTART)
 	}
 
 }

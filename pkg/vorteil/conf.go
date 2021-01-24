@@ -496,6 +496,41 @@ func probe(creq cloudReq, v *Vinitd) {
 
 	}
 
+	// get instance id and region for AWS
+	// region is not in metadadata really so we are using
+	// http://169.254.169.254/latest/dynamic/instance-identity/document
+	// and parse it
+	if v.hypervisorInfo.cloud == cpEC2 {
+
+		url := fmt.Sprintf("%s/latest/dynamic/instance-identity/document", creq.server)
+		logAlways("probe aws identity url %s", url)
+		hn, err := doMetadataRequest(url, creq.header, creq.query)
+		if err != nil {
+			logDebug("error requesting identy: %s", err.Error())
+		}
+
+		var d map[string]interface{}
+		err = json.Unmarshal([]byte(hn), &d)
+		if err != nil {
+			logDebug("error requesting identy: %s", err.Error())
+		}
+
+		vals := map[string]string{
+			"region":     envRegion,
+			"instanceId": envInstanceID,
+		}
+
+		for k, vv := range vals {
+			if val, ok := d[k]; ok {
+				switch sv := val.(type) {
+				case string:
+					v.hypervisorInfo.envs[vv] = sv
+				}
+			}
+		}
+
+	}
+
 }
 
 func basicEnv(v *Vinitd) {
@@ -530,6 +565,7 @@ func fetchCloudMetadata(v *Vinitd) {
 		probe(gcpReq, v)
 	} else if v.hypervisorInfo.cloud == cpEC2 {
 		probe(ec2Req, v)
+
 	}
 }
 

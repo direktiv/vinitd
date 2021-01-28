@@ -31,9 +31,9 @@ const (
 
 	forcedPoweroffTimeout = 3000
 
-	fluxDir   = "/flux-data"
-	fluxError = "error.out"
-	fluxLog   = "log.out"
+	direktivDir = "/direktiv-data"
+	direktivErr = "error.log"
+	direktivOut = "log.log"
 )
 
 type networkSetting struct {
@@ -193,7 +193,7 @@ func (v *Vinitd) PreSetup() error {
 	}
 
 	// mount /tmp as memory fs if read-only
-	if hasCmdLineString("fluxsystem") {
+	if hasCmdLineString("direktiv") {
 
 		flags := syscall.MS_NOATIME | syscall.MS_SILENT
 
@@ -226,33 +226,33 @@ func (v *Vinitd) PreSetup() error {
 					if bytes.Compare(uuidPlain[:], puid[:]) == 0 {
 
 						disk := fmt.Sprintf("/dev/%s1", f.Name())
-						logDebug("mounting %s to %s", disk, fluxDir)
-						err = syscall.Mount(disk, fluxDir, "ext2", uintptr(flags), "barrier=0")
+						logDebug("mounting %s to %s", disk, direktivDir)
+						err = syscall.Mount(disk, direktivDir, "ext2", uintptr(flags), "barrier=0")
 						if err != nil {
-							SystemPanic("can not mount flux data disk: %v", err)
+							SystemPanic("can not mount direktiv data disk: %v", err)
 						}
 
 						// change network setting
-						nw, err := ioutil.ReadFile(filepath.Join(fluxDir, "network.in"))
+						nw, err := ioutil.ReadFile(filepath.Join(direktivDir, "network.in"))
 						if err != nil {
-							SystemPanic("can not read flux network settings: %v", err)
+							SystemPanic("can not read direktiv network settings: %v", err)
 						}
 
 						var nws networkSetting
 						err = json.Unmarshal(nw, &nws)
 						if err != nil {
-							SystemPanic("can not read flux network settings json: %v", err)
+							SystemPanic("can not read direktiv network settings json: %v", err)
 						}
 
 						cl := func(name string) {
-							_, err = os.OpenFile(filepath.Join(fluxDir, name), os.O_CREATE|os.O_RDWR, 0755)
+							_, err = os.OpenFile(filepath.Join(direktivDir, name), os.O_CREATE|os.O_RDWR, 0755)
 							if err != nil {
-								SystemPanic("can not create error.log: %v", err)
+								SystemPanic("can not create log file: %v", err)
 							}
 						}
 
-						cl(fluxError)
-						cl(fluxError)
+						cl(direktivErr)
+						cl(direktivOut)
 
 						v.vcfg.Networks[0].IP = nws.IP
 						v.vcfg.Networks[0].Gateway = nws.Gateway

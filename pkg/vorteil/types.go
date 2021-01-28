@@ -47,6 +47,9 @@ const (
 	envIP            = "IP%d"
 	envExtIP         = "EXT_IP%d"
 	envUserData      = "USERDATA"
+
+	envRegion     = "CLOUD_REGION"
+	envInstanceID = "CLOUD_INSTANCE_ID"
 )
 
 const (

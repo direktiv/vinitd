@@ -30,6 +30,10 @@ const (
 	logAll    = "all"
 )
 
+var (
+	logInputs map[string]string
+)
+
 func addLogginOutput(sb *strings.Builder, logEntry vcfg.Logging,
 	match string, envs map[string]string) {
 	sb.WriteString("[OUTPUT]\n")
@@ -54,16 +58,23 @@ func addLogginOutput(sb *strings.Builder, logEntry vcfg.Logging,
 		sb.WriteString(fmt.Sprintf("    %s %s\n", s[0], s[1]))
 	}
 
-	sb.WriteString(fmt.Sprintf("    Match %s\n", match))
+	sb.WriteString(fmt.Sprintf("    Match_Regex %s\n", match))
 
 }
 
 func addSystemLogging(sb *strings.Builder, ifcs map[string]*ifc) {
 
 	addInput := func(sb *strings.Builder, name string) {
+
+		// we dont' add it again
+		if _, ok := logInputs[name]; ok {
+			return
+		}
+		logInputs[name] = name
+
 		sb.WriteString(inputString)
 		sb.WriteString(fmt.Sprintf("    Name %s\n", name))
-		sb.WriteString("    Tag vsystem\n")
+		sb.WriteString(fmt.Sprintf("    Tag vsystem-%s\n", name))
 	}
 
 	addInput(sb, "cpu")
@@ -76,12 +87,18 @@ func addSystemLogging(sb *strings.Builder, ifcs map[string]*ifc) {
 		sb.WriteString(inputString)
 		sb.WriteString("    Name netif\n")
 		sb.WriteString(fmt.Sprintf("    Interface %s\n", ifc.name))
-		sb.WriteString("    Tag vsystem\n")
+		sb.WriteString(fmt.Sprintf("    Tag vsystem-%s\n", ifc.name))
 	}
 
 }
 
 func addKernelLogging(sb *strings.Builder) {
+
+	// we dont' add it again
+	if _, ok := logInputs["kmsg"]; ok {
+		return
+	}
+	logInputs["kmsg"] = "kmsg"
 
 	sb.WriteString(inputString)
 	sb.WriteString("    Name kmsg\n")
@@ -90,6 +107,12 @@ func addKernelLogging(sb *strings.Builder) {
 }
 
 func addStdoutLogging(sb *strings.Builder) {
+
+	// we dont' add it again
+	if _, ok := logInputs["tail"]; ok {
+		return
+	}
+	logInputs["tail"] = "tail"
 
 	sb.WriteString(inputString)
 	sb.WriteString("    Name tail\n")
@@ -142,6 +165,9 @@ func addProgLogging(sb *strings.Builder, programs []*program) {
 
 func (v *Vinitd) startLogging() {
 
+	// this is to detect duplicate inputs
+	logInputs = make(map[string]string)
+
 	writeEtcFile("parsers.conf", filepath.Join("/etc", "parsers.conf"))
 
 	var str strings.Builder
@@ -168,35 +194,35 @@ func (v *Vinitd) startLogging() {
 
 		logDebug("logging type: %s", l.Type)
 
-		switch l.Type {
-		case logSystem:
+		switch t := l.Type; {
+		case t == logSystem:
 			{
 				addSystemLogging(&str, v.ifcs)
-				addLogginOutput(&str, l, "vsystem", v.hypervisorInfo.envs)
+				addLogginOutput(&str, l, "vsystem-*", v.hypervisorInfo.envs)
 			}
-		case logKernel:
+		case t == logKernel:
 			{
 				addKernelLogging(&str)
 				addLogginOutput(&str, l, "vkernel", v.hypervisorInfo.envs)
 			}
-		case logStdout:
+		case t == logStdout:
 			{
 				addStdoutLogging(&str)
 				addLogginOutput(&str, l, "vstdout", v.hypervisorInfo.envs)
 				redir()
 			}
-		case logProgs:
+		case t == logProgs:
 			{
 				addProgLogging(&str, v.programs)
 				addLogginOutput(&str, l, "vprog", v.hypervisorInfo.envs)
 			}
-		case logAll:
+		default:
 			{
 				addSystemLogging(&str, v.ifcs)
 				addKernelLogging(&str)
 				addStdoutLogging(&str)
 				addProgLogging(&str, v.programs)
-				addLogginOutput(&str, l, "*", v.hypervisorInfo.envs)
+				addLogginOutput(&str, l, t, v.hypervisorInfo.envs)
 				redir()
 			}
 		}
@@ -233,7 +259,7 @@ func (v *Vinitd) startLogging() {
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
 
-	cmd.Env = []string{fmt.Sprintf("HOSTNAME=%s", v.hostname)}
+	cmd.Env = []string{fmt.Sprintf("HOSTNAME=%s", v.hostname), "HOME=/"}
 
 	err = cmd.Start()
 	if err != nil {

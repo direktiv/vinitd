@@ -234,6 +234,15 @@ func (v *Vinitd) startLogging() {
 	str.WriteString("    Match *\n")
 	str.WriteString("    Record hostname ${HOSTNAME}\n")
 
+	if v.hypervisorInfo.cloud == cpEC2 {
+		if iid, ok := v.hypervisorInfo.envs[envInstanceID]; ok {
+			str.WriteString("[FILTER]\n")
+			str.WriteString("    Name record_modifier\n")
+			str.WriteString("    Match *\n")
+			str.WriteString(fmt.Sprintf("    Record  ec2_instance_id %s\n", iid))
+		}
+	}
+
 	err := ioutil.WriteFile("/etc/fb.cfg", []byte(str.String()), 0644)
 	if err != nil {
 		logError("can not create fluent-bit config file: %s", err.Error())

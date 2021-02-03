@@ -268,7 +268,7 @@ func (v *Vinitd) startLogging() {
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
 
-	cmd.Env = []string{fmt.Sprintf("HOSTNAME=%s", v.hostname), "HOME=/"}
+	cmd.Env = []string{fmt.Sprintf("HOSTNAME=%s", v.hostname), "HOME=/", "LD_LIBRARY_PATH=/vorteil"}
 
 	err = cmd.Start()
 	if err != nil {

@@ -41,6 +41,20 @@ func startVMTools(cards int, hostname string) {
 	C.vmtools_start(C.int(cards), hn)
 }
 
+func addVirtualRouting(dev, ip string) error {
+
+	direct := C.CString(dev)
+	defer C.free(unsafe.Pointer(direct))
+
+	target := C.CString(ip)
+	defer C.free(unsafe.Pointer(target))
+
+	C.helper_add_gcp_virtual_route(direct, target)
+
+	return nil
+
+}
+
 func addNetworkRoute4(dst, mask, gw net.IP, dev string, flags int) error {
 
 	var dstNwOrder, maskNwOrder, gwNwOrder int

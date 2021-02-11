@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -427,6 +428,41 @@ func doMetadataRequest(url string, header, query map[string]string) (string, err
 	return strings.TrimSpace(string(respByte)), nil
 }
 
+func pollGCP(creq cloudReq, name string, idx int) {
+
+	start := time.Now().Add(30 * time.Minute)
+
+	for {
+
+		<-time.After(30 * time.Second)
+
+		if time.Now().After(start) {
+			logDebug("no GCP LB found")
+			return
+		}
+
+		lburl := fmt.Sprintf("%s/computeMetadata/v1/instance/network-interfaces/%d/forwarded-ips/", creq.server, idx)
+		r, err := doMetadataRequest(lburl, creq.header, creq.query)
+		if err != nil {
+			logWarn("error requesting list of forward ips: %s", err.Error())
+			continue
+		}
+
+		ss := strings.Split(r, "\n") //jens
+		for _, s := range ss {
+			lburl = fmt.Sprintf("%s/computeMetadata/v1/instance/network-interfaces/%d/forwarded-ips/%s", creq.server, idx, s)
+			r, err = doMetadataRequest(lburl, creq.header, creq.query)
+			if err != nil {
+				logWarn("error requesting forward ip: %s", err.Error())
+				continue
+			}
+
+			addVirtualRouting(name, r)
+		}
+	}
+
+}
+
 func probe(creq cloudReq, v *Vinitd) {
 
 	for _, ifc := range v.ifcs {
@@ -451,6 +487,16 @@ func probe(creq cloudReq, v *Vinitd) {
 		if v.hypervisorInfo.cloud == cpEC2 {
 			break
 		}
+
+		// for GCP we get network-interfaces/<index>/forwarded-ips/ and set the routing
+		// accrodingly. This is needed if the device is behind an internal TCP proxy
+		// which is not a proxy but rather a virtual network:
+		// https://cloud.google.com/load-balancing/docs/internal#how_ilb_works
+		// https://cloudplatform.googleblog.com/2015/07/Debugging-Health-Checks-in-Load-Balancing-on-Google-Compute-Engine.html
+		if v.hypervisorInfo.cloud == cpGCP {
+			go pollGCP(creq, ifc.name, ifc.idx)
+		}
+
 	}
 
 	url := fmt.Sprintf(creq.customDataURL, creq.server)

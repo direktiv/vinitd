@@ -27,7 +27,7 @@ statik:
 	build/statik/statik -f -include  *.dat -p vorteil -dest $(BASEDIR)/pkg -src assets/etc
 
 .PHONY: prep
-prep: dns dhcp build-bundler statik
+prep: dhcp build-bundler statik
 
 .PHONY: build-bundler
 build-bundler:
@@ -58,15 +58,6 @@ bundle: build-bundler build
 	$(BASEDIR)/build/bundler/bundler extract $(BASEDIR)/build/bundle/kernel-$(BUNDLE) $(BASEDIR)/build/bundle/files; \
 	cp $(BASEDIR)/build/vinitd $(BASEDIR)/build/bundle/files
 	$(BASEDIR)/build/bundler/bundler create $(VERSION) $(BASEDIR)/build/bundle/files/bundle.toml > $(TARGET)/kernel-$(VERSION)
-
-.PHONY: dns
-dns:
-	@echo "checking dns in $(BASEDIR)/build"
-	@if [ ! -d $(BASEDIR)/build/dnsproxy-go ]; 													\
-		then																	\
-			 mkdir -p $(BASEDIR)/build && cd $(BASEDIR)/build &&	\
-			 git clone https://github.com/vorteil/dnsproxy-go; \
-	fi
 
 .PHONY: dhcp
 dhcp:

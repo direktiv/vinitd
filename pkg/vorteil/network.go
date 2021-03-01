@@ -259,6 +259,7 @@ func renewDHCP(name string, cinfo *clientdhcp) (*dhcpv4.DHCPv4, error) {
 		dhcpv4.WithOption(dhcpv4.OptClientIdentifier(cinfo.cid)),
 		dhcpv4.WithBroadcast(true),
 		dhcpv4.WithRequestedOptions(dhcpv4.OptionRenewTimeValue, dhcpv4.OptionNTPServers,
+			dhcpv4.OptionNameServiceSearch, dhcpv4.OptionDNSDomainSearchList, dhcpv4.OptionHostName,
 			dhcpv4.GenericOptionCode(azureEndpointServerOption)))
 
 	if err != nil {
@@ -338,6 +339,7 @@ func dhcpDiscover(ifc net.Interface,
 				dhcpv4.WithOption(dhcpv4.OptClientIdentifier(clientID)),
 				dhcpv4.WithBroadcast(true),
 				dhcpv4.WithRequestedOptions(dhcpv4.OptionRenewTimeValue, dhcpv4.OptionNTPServers,
+					dhcpv4.OptionNameServiceSearch, dhcpv4.OptionDNSDomainSearchList, dhcpv4.OptionHostName,
 					dhcpv4.GenericOptionCode(azureEndpointServerOption)))
 
 			offer, err = c.SendReceive(sfd, rfd, discover,
@@ -421,6 +423,24 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 
 	configInterface(ifc, offer.YourIPAddr, mask, router)
 
+	for _, ntpIPs := range offer.NTPServers() {
+		logDebug("dhcp NTP servers: %v", ntpIPs.String())
+		v.vcfg.System.NTP = append(v.vcfg.System.NTP, ntpIPs.String())
+	}
+
+	// logAlways("DOMAIN SEARCH %v", offer.DomainSearch())
+	if offer.DomainSearch() != nil {
+		for _, ss := range offer.DomainSearch().Labels {
+			logDebug("dhcp domain search labels: %v", ss)
+			v.searchDomains = append(v.searchDomains, ss)
+		}
+	}
+
+	if len(offer.HostName()) > 0 {
+		logDebug("Setting hostname to %v", offer.HostName())
+		v.hostname = offer.HostName()
+	}
+
 	renew := dhcpDefaultRenew
 	rv := offer.Options.Get(dhcpv4.OptionRenewTimeValue)
 	if rv != nil {
@@ -445,9 +465,6 @@ func fetchDHCP(ifc *ifc, v *Vinitd) error {
 
 	// add DNS
 	v.dns = append(v.dns, offer.DNS()...)
-
-	// XXX: ntp, at the moment we only use provided ntp servers
-	// we should read from dhcp as well
 
 	go func(name string, client *client4.Client, offer *dhcpv4.DHCPv4) {
 

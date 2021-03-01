@@ -157,6 +157,24 @@ func etcGenerateFiles(hostname, user string) error {
 		}
 	}
 
+	err := genHostnameFile(hostname)
+	if err != nil {
+		return err
+	}
+
+	// needs random and takes some time
+	go generateEtcMachineID()
+
+	return nil
+}
+
+func genHostnameFile(hostname string) error {
+
+	// fqdn to hostname
+	if strings.IndexByte(hostname, '.') > 0 {
+		hostname = hostname[0:strings.IndexByte(hostname, '.')]
+	}
+
 	// set hostname (/etc/hostname)
 	f, err := os.OpenFile("/etc/hostname", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
@@ -172,8 +190,6 @@ func etcGenerateFiles(hostname, user string) error {
 	// generate /etc/hosts
 	generateEtcHosts(hostname)
 
-	// needs random and takes some time
-	go generateEtcMachineID()
-
 	return nil
+
 }

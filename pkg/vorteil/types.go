@@ -132,6 +132,8 @@ type Vinitd struct {
 
 	readOnly        bool
 	instantShutdown bool
+
+	searchDomains []string
 }
 
 type program struct {

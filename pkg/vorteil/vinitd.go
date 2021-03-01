@@ -366,6 +366,44 @@ func (v *Vinitd) Setup() error {
 		SystemPanic("system setup failed: %s", err.Error())
 	}
 
+	// we have to write resolve conf if there are search domains from dhcp
+	if len(v.searchDomains) > 0 {
+		rc, err := ioutil.ReadFile("/etc/resolv.conf")
+		if err != nil {
+			return err
+		}
+
+		var sb strings.Builder
+
+		sb.WriteString(string(rc))
+		sb.WriteString("options edns0\n")
+		sb.WriteString("search")
+
+		for _, s := range v.searchDomains {
+			sb.WriteString(fmt.Sprintf(" %s", s))
+		}
+		sb.WriteByte('\n')
+
+		f, err := os.OpenFile("/etc/resolv.conf", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+		if err != nil {
+			return err
+		}
+		_, err = f.WriteString(sb.String())
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+	}
+
+	// if hostname rewritten, update it
+	if v.hostname != hn {
+		logDebug("changed hostname from %s to %s", hn, v.hostname)
+		os.Remove("/etc/hosts")
+		os.Remove("/etc/hostname")
+		genHostnameFile(v.hostname)
+	}
+
 	for i, p := range v.vcfg.Programs {
 		v.prepProgram(p, i)
 	}

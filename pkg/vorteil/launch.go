@@ -24,6 +24,7 @@ import (
 	"time"
 
 	reap "github.com/hashicorp/go-reap"
+	"github.com/mattn/go-shellwords"
 	"github.com/vorteil/vorteil/pkg/vcfg"
 	"golang.org/x/sys/unix"
 )
@@ -530,20 +531,44 @@ func args(progArgs []string, envs []string) []string {
 
 func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 
-	var newEnvs []string
+	var newEnvs, output []string
+	var envs map[string]string
+
+	envs = make(map[string]string)
+
 	for _, e := range progValues {
-		for k, val := range hyperVisorEnvs {
-			e = strings.ReplaceAll(e, fmt.Sprintf(replaceString, k), val)
-		}
 		newEnvs = append(newEnvs, e)
 	}
 
-	// now add them as well
 	for k, val := range hyperVisorEnvs {
 		newEnvs = append(newEnvs, fmt.Sprintf(environString, k, val))
 	}
 
-	return newEnvs
+	parser := shellwords.NewParser()
+	parser.ParseEnv = true
+	parser.ParseBacktick = false
+	parser.Getenv = func(key string) string {
+		v, _ := envs[key]
+		return v
+	}
+
+	for i := 0; i < len(newEnvs); i++ {
+		s := newEnvs[i]
+		strs := strings.SplitN(s, "=", 2)
+		var k, v string
+		k = strs[0]
+		if len(strs) > 1 {
+			v = strs[1]
+		}
+
+		strs, _ = parser.Parse(v)
+		v = strs[0]
+		envs[k] = v
+		output = append(output, fmt.Sprintf(environString, k, v))
+	}
+
+	return output
+
 }
 
 func (v *Vinitd) prepProgram(p vcfg.Program, pIndex int) error {

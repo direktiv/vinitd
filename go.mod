@@ -15,6 +15,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/hashicorp/go-reap v0.0.0-20170704170343-bf58d8a43e7b
 	github.com/insomniacslk/dhcp v0.0.0-20200601194411-4b5a011e0a4c
+	github.com/mattn/go-shellwords v1.0.11
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/rakyll/statik v0.1.7
 	github.com/satori/go.uuid v1.2.0

@@ -547,6 +547,7 @@ func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 	parser := shellwords.NewParser()
 	parser.ParseEnv = true
 	parser.ParseBacktick = false
+
 	parser.Getenv = func(key string) string {
 		v, _ := envs[key]
 		return v
@@ -555,16 +556,20 @@ func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 	for i := 0; i < len(newEnvs); i++ {
 		s := newEnvs[i]
 		strs := strings.SplitN(s, "=", 2)
-		var k, v string
-		k = strs[0]
-		if len(strs) > 1 {
-			v = strs[1]
-		}
+		if len(strs) == 2 {
+			var k, v string
+			k = strs[0]
+			if len(strs) > 1 {
+				v = strs[1]
+			}
 
-		strs, _ = parser.Parse(v)
-		v = strs[0]
-		envs[k] = v
-		output = append(output, fmt.Sprintf(environString, k, v))
+			strs, _ := parser.Parse(v)
+			if len(strs) > 0 {
+				v = strs[0]
+				envs[k] = v
+				output = append(output, fmt.Sprintf(environString, k, v))
+			}
+		}
 	}
 
 	return output

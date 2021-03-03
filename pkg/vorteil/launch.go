@@ -565,7 +565,7 @@ func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 
 			strs, _ := parser.Parse(v)
 			if len(strs) > 0 {
-				v = strs[0]
+				v = strings.Join(strs, " ")
 				envs[k] = v
 				output = append(output, fmt.Sprintf(environString, k, v))
 			}

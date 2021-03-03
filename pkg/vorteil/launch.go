@@ -536,12 +536,12 @@ func envs(progValues []string, hyperVisorEnvs map[string]string) []string {
 
 	envs = make(map[string]string)
 
-	for _, e := range progValues {
-		newEnvs = append(newEnvs, e)
-	}
-
 	for k, val := range hyperVisorEnvs {
 		newEnvs = append(newEnvs, fmt.Sprintf(environString, k, val))
+	}
+
+	for _, e := range progValues {
+		newEnvs = append(newEnvs, e)
 	}
 
 	parser := shellwords.NewParser()

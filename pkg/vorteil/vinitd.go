@@ -111,7 +111,6 @@ func setupMountOptions(diskname string, readOnly bool) error {
 
 		// in record mode we need  the atime
 		if hasCmdLineString("recordmode") {
-			logAlways("recordmode, skip noatime")
 			flags = syscall.MS_REMOUNT
 		}
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/AdguardTeam/dnsproxy/upstream"
+	"github.com/AdguardTeam/golibs/log"
 )
 
 const (
@@ -97,6 +98,7 @@ func (v *Vinitd) startDNS(dnsAddr string, verbose bool) error {
 	}
 	config.UpstreamConfig = &upstreamConfig
 
+	log.SetLevel(log.ERROR)
 	dnsProxy := proxy.Proxy{Config: config}
 	err = dnsProxy.Start()
 

@@ -111,7 +111,9 @@ func shutdown(cmd int) {
 	logAlways("shutting down system")
 
 	// Fixed Timeout - Allows for shutdown logs to be printed
-	time.Sleep(250 * time.Millisecond)
+	if !isFirecracker {
+		time.Sleep(250 * time.Millisecond)
+	}
 
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("s"), 0644)
 	ioutil.WriteFile("/proc/sysrq-trigger", []byte("u"), 0644)

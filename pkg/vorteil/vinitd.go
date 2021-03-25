@@ -257,7 +257,7 @@ func (v *Vinitd) PreSetup() error {
 						v.vcfg.Networks[0].Gateway = nws.Gateway
 						v.vcfg.Networks[0].Mask = nws.Mask
 
-						instantShutdown = true
+						isFirecracker = true
 
 					}
 				}

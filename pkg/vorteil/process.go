@@ -38,6 +38,7 @@ var (
 	internal map[uint32]string
 
 	instantShutdown = false
+	isFirecracker   = false
 )
 
 // ProcEventHeader ...
@@ -124,7 +125,7 @@ func shutdown(cmd int) {
 	}
 
 	// firecracker needs reboot for poweroff
-	if instantShutdown {
+	if isFirecracker {
 		syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 	} else {
 		syscall.Reboot(cmd)

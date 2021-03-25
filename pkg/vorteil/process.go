@@ -246,6 +246,7 @@ func handleExit(progs []*program) {
 	if count == 0 {
 		if initStatus != statusPoweroff {
 			logAlways("no programs still running")
+			instantShutdown = true
 		}
 		shutdown(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 	}

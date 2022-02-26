@@ -17,5 +17,6 @@ pkg/vorteil/statik.go
 
 .scanner*
 
+files/
 test/_*
 test/*.raw

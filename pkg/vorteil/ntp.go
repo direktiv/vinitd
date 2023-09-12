@@ -56,7 +56,7 @@ func setupChronyD(ntps []string) error {
 
 		logDebug("ntp config:\n %s", chronydCfgData)
 
-		startChrony()
+		return startChrony()
 	}
 
 	return nil

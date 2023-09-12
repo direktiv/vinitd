@@ -479,10 +479,13 @@ func (v *Vinitd) PostSetup() error {
 
 	// Setup ChronyD NTP Server
 	go func() {
-		if err := setupChronyD(v.vcfg.System.NTP); err != nil {
+		defer wg.Done()
+		chronydCmd, err := setupChronyD(v.vcfg.System.NTP)
+		if err != nil {
 			errors <- err
+			return
 		}
-		wg.Done()
+		logDebug("chronyd started successfully with pid %d", chronydCmd.Process.Pid)
 	}()
 
 	// wait on all tasks

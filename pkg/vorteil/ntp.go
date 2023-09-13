@@ -24,7 +24,7 @@ rtcsync`
 	chronydCfgPath = "/etc/chrony.conf"
 )
 
-func setupChronyD(ntps []string) error {
+func setupChronyD(ntps []string) (*exec.Cmd, error) {
 
 	logDebug("ntp servers found: %d", len(ntps))
 
@@ -40,7 +40,7 @@ func setupChronyD(ntps []string) error {
 		logAlways("ntp servers\t: %s", strings.Join(ntps, ", "))
 		if _, err := os.Stat(filepath.Dir(chronydCfgPath)); os.IsNotExist(err) {
 			if err := os.MkdirAll(filepath.Dir(chronydCfgPath), 0755); err != nil {
-				return fmt.Errorf("could not create directory: %v", err)
+				return nil, fmt.Errorf("could not create directory: %v", err)
 			}
 		}
 
@@ -51,24 +51,24 @@ func setupChronyD(ntps []string) error {
 
 		// Write config data
 		if err := ioutil.WriteFile(chronydCfgPath, []byte(chronydCfgData), 0644); err != nil {
-			return fmt.Errorf("could not write config file: %v", err)
+			return nil, fmt.Errorf("could not write config file: %v", err)
 		}
 
 		logDebug("ntp config:\n %s", chronydCfgData)
 
-		startChrony()
+		return startChrony()
 	}
 
-	return nil
+	return nil, nil
 }
 
-func startChrony() error {
+func startChrony() (*exec.Cmd, error) {
 	// Start ChronyD
-	chronydCMD := exec.Command("/vorteil/chronyd") // set args to []string{"-l", "/etc/chrony.log"}... to save logs
-	chronydCMD.SysProcAttr = &syscall.SysProcAttr{
+	chronydCmd := exec.Command("/vorteil/chronyd") // set args to []string{"-l", "/etc/chrony.log"}... to save logs
+	chronydCmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{Uid: uint32(rootID), Gid: uint32(rootID)},
 	}
 
-	return chronydCMD.Start()
+	return chronydCmd, chronydCmd.Start()
 
 }
